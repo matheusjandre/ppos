@@ -2,43 +2,26 @@
 // Prof. Carlos A. Maziero, DINF UFPR
 // Versão 1.5 -- Março de 2023
 
-// Teste da gestão básica de tarefas
+// Teste do task dispatcher e escalonador FCFS
 
 #include <stdio.h>
 #include <stdlib.h>
 #include "lib/ppos/ppos.h"
 
-task_t Ping, Pong;
+task_t Pang, Peng, Ping, Pong, Pung;
 
-// corpo da thread Ping
-void BodyPing(void *arg)
+// corpo das threads
+void Body(void *arg)
 {
    int i;
-   char *name = (char *)arg;
 
-   printf("%s: inicio\n", name);
-   for (i = 0; i < 4; i++)
+   printf("%s: inicio\n", (char *)arg);
+   for (i = 0; i < 5; i++)
    {
-      printf("%s: %d\n", name, i);
-      task_switch(&Pong);
+      printf("%s: %d\n", (char *)arg, i);
+      task_yield();
    }
-   printf("%s: fim\n", name);
-   task_exit(0);
-}
-
-// corpo da thread Pong
-void BodyPong(void *arg)
-{
-   int i;
-   char *name = (char *)arg;
-
-   printf("%s: inicio\n", name);
-   for (i = 0; i < 4; i++)
-   {
-      printf("%s: %d\n", name, i);
-      task_switch(&Ping);
-   }
-   printf("%s: fim\n", name);
+   printf("%s: fim\n", (char *)arg);
    task_exit(0);
 }
 
@@ -48,13 +31,12 @@ int main(int argc, char *argv[])
 
    ppos_init();
 
-   task_init(&Ping, BodyPing, "    Ping");
-   task_init(&Pong, BodyPong, "        Pong");
-
-   task_switch(&Ping);
-   task_switch(&Pong);
+   task_init(&Pang, Body, "    Pang");
+   task_init(&Peng, Body, "        Peng");
+   task_init(&Ping, Body, "            Ping");
+   task_init(&Pong, Body, "                Pong");
+   task_init(&Pung, Body, "                    Pung");
 
    printf("main: fim\n");
-
    task_exit(0);
 }

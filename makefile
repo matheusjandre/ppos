@@ -2,7 +2,7 @@
 # GRR: 20215397
 
 COMP = gcc
-CFLAGS = -Wall -std=c99
+CFLAGS = -Wall -g -std=c99
 
 PROGRAM = output
 MAIN = main.c
@@ -33,5 +33,5 @@ ppos.o: $(LIB)/ppos/ppos.h $(LIB)/ppos/ppos_data.h
 # CLEANING -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 clean:
-	@rm -rf *.o $(PROGRAM)
+	@rm -rf $(OBJ)/*.o $(PROGRAM) debug
 	@echo "Successfully purged files."
