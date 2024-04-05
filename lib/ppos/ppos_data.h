@@ -35,7 +35,8 @@ typedef struct task_t
 typedef struct
 {
   int taskCounter;
-  struct task_t mainTask, *currentTask;
+  struct task_t mainTask, dispatcherTask, *currentTask;
+  queue_t *readyQueue;
 } os_globals_t;
 
 // estrutura que define um semáforo
@@ -61,5 +62,11 @@ typedef struct
 {
   // preencher quando necessário
 } mqueue_t;
+
+// dispatcher do sistema operacional
+void dispatcher(void *arg);
+
+// retorna a próxima tarefa a ser executada, ou NULL se não houver nada para fazer
+task_t *scheduler();
 
 #endif
