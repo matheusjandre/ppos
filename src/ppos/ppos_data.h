@@ -2,15 +2,30 @@
 // Prof. Carlos A. Maziero, DINF UFPR
 // Versão 1.5 -- Março de 2023
 
-// Estruturas de dados internas do sistema operacional
+// GRR20215397 Matheus Henrique Jandre Ferraz
+// Projeto no github: https://github.com/matheusjandre/ppos
+// Alterações:
+// - Adicionado constantes de tamanho das pilhas e de prioridades mínima, máxima, padrão e de envelhecimento
+// - Adicionado a estrutura de dados os_globals_t para armazenar as variáveis globais do sistema operacional
+// - Modificado e adicionado status e prioridades a task_t
+// - Adicionado a função dispatcher para gerenciar as tarefas
+// - Adicionado a função scheduler para escolher a próxima tarefa a ser executada
+// - Adicionado a função task_to_age para envelhecer a tarefa passada por parâmetro
 
+// Estruturas de dados internas do sistema operacional
 #ifndef __PPOS_DATA__
 #define __PPOS_DATA__
 
-#include <ucontext.h> // biblioteca POSIX de trocas de contexto
-#include "../queue/queue.h"
+#include <ucontext.h>              // biblioteca POSIX de trocas de contexto
+#include "../../lib/queue/queue.h" // biblioteca de filas
 
 #define STACKSIZE 64 * 1024 // tamanho de pilha das threads
+
+// Prioridades de tarefas
+#define PRIORITY_MIN -20   // menor prioridade possível
+#define PRIORITY_MAX 20    // maior prioridade possível
+#define PRIORITY_DEFAULT 0 // prioridade padrão
+#define PRIORITY_AGING -1  // valor de envelhecimento da prioridade
 
 // Estrutura que define o estado de uma tarefa no operacional
 typedef enum task_status_e
@@ -28,7 +43,8 @@ typedef struct task_t
   int id;                     // identificador da tarefa
   ucontext_t context;         // contexto armazenado da tarefa
   task_status_e status;       // pronta, rodando, suspensa, ...
-  // ... (outros campos serão adicionados mais tarde)
+  int staticPriority;         // prioridade estatica
+  int dynamicPriority;        // prioridade dinamica
 } task_t;
 
 // Estrutura que define as variaveis globais do sistema operacional
@@ -68,5 +84,8 @@ void dispatcher(void *arg);
 
 // retorna a próxima tarefa a ser executada, ou NULL se não houver nada para fazer
 task_t *scheduler();
+
+// envelhece a tarefa passada por parâmetro
+int task_to_age(task_t *task);
 
 #endif

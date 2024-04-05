@@ -6,8 +6,8 @@ ppos is a toy operating system proposed by UFPR teacher Carlos Alberto Maziero a
 - [x] Biblioteca de filas
 - [x] Trocas de contexto
 - [x] Gestão de tarefas
-- [ ] Dispatcher
-- [ ] Escalonador por prioridades
+- [x] Dispatcher
+- [x] Escalonador por prioridades
 - [ ] Preempção por tempo
 - [ ] Contabilização
 - [ ] Tarefa main
