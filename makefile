@@ -27,8 +27,8 @@ debug: $(DEP)
 queue.o: $(LIB)/queue/queue.h
 	@$(COMP) $(CFLAGS) -c $(LIB)/queue/queue.c -o $(OBJ)/queue.o
 
-ppos.o: $(LIB)/ppos/ppos.h $(LIB)/ppos/ppos_data.h
-	@$(COMP) $(CFLAGS) -c $(LIB)/ppos/ppos_core.c -o $(OBJ)/ppos_core.o
+ppos.o: $(SRC)/ppos/ppos.h $(SRC)/ppos/ppos_data.h
+	@$(COMP) $(CFLAGS) -c $(SRC)/ppos/ppos_core.c -o $(OBJ)/ppos_core.o
 
 # CLEANING -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
