@@ -15,7 +15,7 @@ void ppos_init()
 #ifdef DEBUG
   printf("(ppos_init) inicializando sistema.\n");
 #endif
-  
+
   setvbuf(stdout, 0, _IONBF, 0); // Desativa o buffer da saída padrão (stdout), usado pela função printf
 
   getcontext(&ppos.mainTask.context);               // Salva o contexto da tarefa main
@@ -121,12 +121,12 @@ int task_switch(task_t *task)
   }
 
 #ifdef DEBUG
-  if (task_id() == ppos.dispatcherTask.id)
+  if ((unsigned int)task_id() == ppos.dispatcherTask.id)
     printf("(task_switch) trocando de DISPATCHER para %d.\n", task->id);
   else
     printf("(task_switch) trocando de %d para DISPATCHER.\n", ppos.currentTask->id);
 #endif
-  
+
   task_t *temp = ppos.currentTask; // Salva a tarefa atual
 
   ppos.currentTask = task;                     // Atualiza a tarefa corrente
