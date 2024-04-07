@@ -7,7 +7,7 @@
 #include <sys/time.h>
 #include "ppos.h"
 
-ppos_environment_t ppos;
+ppos_environment_t ppos; // Variáveis globais do sistema operacional
 
 // Inicializa o sistema operacional; deve ser chamada no inicio do main()
 void ppos_init()
@@ -15,16 +15,18 @@ void ppos_init()
 #ifdef DEBUG
   printf("(ppos_init) inicializando sistema.\n");
 #endif
+  
+  setvbuf(stdout, 0, _IONBF, 0); // Desativa o buffer da saída padrão (stdout), usado pela função printf
 
-  setvbuf(stdout, 0, _IONBF, 0);
-
-  // Prepara o ambiente do ppos
-  getcontext(&ppos.mainTask.context);
-  ppos.taskCounter = 0;
-  ppos.mainTask.id = 0;
-  ppos.currentTask = &(ppos.mainTask);
-  ppos.currentTask->staticPriority = PRIORITY_DEFAULT;
-  ppos.currentTask->dynamicPriority = PRIORITY_DEFAULT;
+  getcontext(&ppos.mainTask.context);               // Salva o contexto da tarefa main
+  ppos.taskCounter = 0;                             // Inicializa o contador de tarefas
+  ppos.mainTask.id = 0;                             // ID da tarefa main
+  ppos.mainTask.staticPriority = PRIORITY_DEFAULT;  // Prioridade estática da tarefa corrente
+  ppos.mainTask.dynamicPriority = PRIORITY_DEFAULT; // Prioridade dinâmica da tarefa corrente
+  ppos.mainTask.type = USER_TASK;                   // Tipo da tarefa corrente
+  ppos.mainTask.status = RUNNING;                   // Status da tarefa corrente
+  ppos.mainTask.quanta = QUANTA_DEFAULT;            // Contador de quantum da tarefa corrente
+  ppos.currentTask = &(ppos.mainTask);              // Tarefa corrente é a main
 
   ppos.readyQueue = NULL;
 
@@ -74,7 +76,7 @@ void ppos_init()
 #endif
 }
 
-// Inicializa uma nova tarefa. Retorna um ID> 0 ou erro.
+// Inicializa uma nova tarefa. Retorna um ID > 0 ou erro.
 int task_init(task_t *task, void (*start_func)(void *), void *arg)
 {
   getcontext(&task->context); // Inicializa o contexto da tarefa
@@ -109,7 +111,7 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg)
   return task->id;
 }
 
-// alterna a execução para a tarefa indicada
+// Alterna a execução para a tarefa indicada
 int task_switch(task_t *task)
 {
   if (!task) // Se a tarefa não existir
@@ -124,12 +126,13 @@ int task_switch(task_t *task)
   else
     printf("(task_switch) trocando de %d para DISPATCHER.\n", ppos.currentTask->id);
 #endif
+  
   task_t *temp = ppos.currentTask; // Salva a tarefa atual
 
-  ppos.currentTask = task;                           // Atualiza a tarefa corrente
-  ppos.currentTask->status = RUNNING;                // Atualiza o status da tarefa corrente
-  ppos.currentTask->quantumCounter = QUANTA_DEFAULT; // Reinicia o contador de quantum
-  swapcontext(&temp->context, &task->context);       // Troca de contexto
+  ppos.currentTask = task;                     // Atualiza a tarefa corrente
+  ppos.currentTask->status = RUNNING;          // Atualiza o status da tarefa corrente
+  ppos.currentTask->quanta = QUANTA_DEFAULT;   // Reinicia o contador de quantum
+  swapcontext(&temp->context, &task->context); // Troca de contexto
 
   return 0;
 }
@@ -158,7 +161,7 @@ void task_exit(int exit_code)
   task_switch(&ppos.dispatcherTask); // Volta para o dispatcher
 }
 
-// retorna o identificador da tarefa corrente (main deve ser 0)
+// Retorna o identificador da tarefa corrente (main deve ser 0)
 int task_id()
 {
   if (!ppos.currentTask) // Checa se existe uma tarefa corrente
@@ -170,7 +173,7 @@ int task_id()
   return ppos.currentTask->id; // Retorna o id da tarefa corrente
 }
 
-// a tarefa atual libera o processador para outra tarefa
+// Tarefa atual libera o processador
 void task_yield()
 {
   if (!ppos.currentTask) // Checa se existe uma tarefa corrente
@@ -187,21 +190,21 @@ void task_yield()
   task_switch(&ppos.dispatcherTask); // Troca de contexto
 }
 
-// trata os sinais do temporizador do sistema
+// Trata os sinais do temporizador do sistema
 void tick_handler(int signum)
 {
 #ifdef DEBUG
-  printf("(tick_handler) tarefa atual: %d - %d\n", ppos.currentTask->id, ppos.currentTask->quantumCounter);
+  printf("(tick_handler) tarefa atual: %d - %d\n", ppos.currentTask->id, ppos.currentTask->quanta);
 #endif
 
   // Checa se a tarefa corrente é do tipo sistema ou se o contador de quantum é maior que zero
-  if (ppos.currentTask->type == SYSTEM_TASK || --ppos.currentTask->quantumCounter > 0)
+  if (ppos.currentTask->type == SYSTEM_TASK || --ppos.currentTask->quanta > 0)
     return;
 
   task_yield();
 }
 
-// dispatcher do sistema operacional
+// Dispatcher do sistema operacional
 void dispatcher(void *arg)
 {
 #ifdef DEBUG
@@ -250,7 +253,7 @@ void dispatcher(void *arg)
   task_exit(0);
 }
 
-// retorna a próxima tarefa a ser executada, ou NULL se não houver nada para fazer
+// Retorna a próxima tarefa a ser executada, ou NULL se não houver nada para fazer
 task_t *scheduler()
 {
   task_t *selectedTask = NULL, *tempTask = (task_t *)ppos.readyQueue;
@@ -294,7 +297,7 @@ task_t *scheduler()
   return selectedTask; // Retorna a tarefa selecionada
 }
 
-// define a prioridade estática de uma tarefa (ou a tarefa atual)
+// Define a prioridade estática de uma tarefa (ou a tarefa atual)
 void task_setprio(task_t *task, int prio)
 {
   if (!task && !ppos.currentTask)
@@ -325,8 +328,7 @@ void task_setprio(task_t *task, int prio)
   else
     ppos.currentTask->staticPriority = prio; // Atribui a prioridade estática da tarefa corrente
 }
-
-// retorna a prioridade estática de uma tarefa (ou a tarefa atual)
+// Retorna a prioridade estática de uma tarefa (ou a tarefa atual)
 int task_getprio(task_t *task)
 {
   if (!task && !ppos.currentTask) // Se a tarefa não existir e a tarefa corrente não existir
@@ -338,7 +340,7 @@ int task_getprio(task_t *task)
   return task ? task->staticPriority : ppos.currentTask->staticPriority; // Retorna a prioridade estática da tarefa passada ou da tarefa corrente
 }
 
-// envelhece a prioridade dinâmica de uma tarefa
+// Envelhece a prioridade dinâmica de uma tarefa
 int task_to_age(task_t *task)
 {
   if (!task) // Se a tarefa não existir
