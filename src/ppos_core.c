@@ -15,7 +15,7 @@ void ppos_init()
 #ifdef DEBUG
   printf("(ppos_init) inicializando sistema.\n");
 #endif
-
+  
   setvbuf(stdout, 0, _IONBF, 0); // Desativa o buffer da saída padrão (stdout), usado pela função printf
 
   getcontext(&ppos.mainTask.context);               // Salva o contexto da tarefa main
@@ -126,6 +126,7 @@ int task_switch(task_t *task)
   else
     printf("(task_switch) trocando de %d para DISPATCHER.\n", ppos.currentTask->id);
 #endif
+  
   task_t *temp = ppos.currentTask; // Salva a tarefa atual
 
   ppos.currentTask = task;                     // Atualiza a tarefa corrente
@@ -327,7 +328,6 @@ void task_setprio(task_t *task, int prio)
   else
     ppos.currentTask->staticPriority = prio; // Atribui a prioridade estática da tarefa corrente
 }
-
 // Retorna a prioridade estática de uma tarefa (ou a tarefa atual)
 int task_getprio(task_t *task)
 {

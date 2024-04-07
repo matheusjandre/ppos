@@ -65,7 +65,7 @@ typedef enum task_type_e
 typedef struct task_t
 {
   struct task_t *prev, *next; // ponteiros para usar em filas
-  int id;                     // identificador da tarefa
+  unsigned int id;            // identificador da tarefa
   task_type_e type;           // tipo da tarefa (USER_TASK, SYSTEM_TASK)
   ucontext_t context;         // contexto armazenado da tarefa
   task_status_e status;       // pronta, rodando, suspensa, ...
