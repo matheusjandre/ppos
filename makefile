@@ -1,37 +1,42 @@
 # Matheus Henrique Jandre Ferraz - Bacharelado Ciência da Computação
 # GRR: 20215397
 
-COMP = gcc
-CFLAGS = -Wall -g -std=c99
-
 PROGRAM = output
 MAIN = main.c
 
-LIB = lib
-OBJ = obj
-SRC = src
+LIB_DIR = lib
+OBJ_DIR = obj
+SRC_DIR = src
 
-DEP = queue.o ppos.o
+COMP = gcc
+CFLAGS = -Wextra -std=gnu99
 
-all: $(DEP)
-	@$(COMP) $(CFLAGS) $(OBJ)/*.o $(MAIN) -o $(PROGRAM)
-	@echo "Successfully build. To run: ./$(PROGRAM)"
+DEPS = queue.o ppos.o
+
+all: $(PROGRAM)
 
 debug: CFLAGS += -DDEBUG
-debug: $(DEP)
-	@$(COMP) $(CFLAGS) $(OBJ)/*.o $(MAIN) -o debug
-	@echo "[DEBUG] Successfully build. To run: ./debug"
+debug: $(PROGRAM)
+
+$(PROGRAM): $(DEPS)
+	@$(COMP) $(CFLAGS) $(OBJ_DIR)/*.o $(MAIN) -o $@
+	@echo "Successfully built. To run: ./$@"
+	@echo "Cleaning up object files..."
+	@rm -rf $(OBJ_DIR)
 
 # OBJECTS -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-queue.o: $(LIB)/queue/queue.h
-	@$(COMP) $(CFLAGS) -c $(LIB)/queue/queue.c -o $(OBJ)/queue.o
+queue.o: $(LIB_DIR)/*/queue.h $(LIB_DIR)/*/queue.c | $(OBJ_DIR)
+	@$(COMP) $(CFLAGS) -c $(LIB_DIR)/*/queue.c -o $(OBJ_DIR)/$@
 
-ppos.o: $(SRC)/ppos/ppos.h $(SRC)/ppos/ppos_data.h
-	@$(COMP) $(CFLAGS) -c $(SRC)/ppos/ppos_core.c -o $(OBJ)/ppos_core.o
+ppos.o: $(SRC_DIR)/ppos.h $(SRC_DIR)/ppos_data.h $(SRC_DIR)/ppos_core.c | $(OBJ_DIR)
+	@$(COMP) $(CFLAGS) -c $(SRC_DIR)/ppos*.c -o $(OBJ_DIR)/$@
+
+$(OBJ_DIR):
+	@mkdir -p $@
 
 # CLEANING -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-
 
 clean:
-	@rm -rf $(OBJ)/*.o $(PROGRAM) debug
+	@rm -rf $(OBJ_DIR) $(PROGRAM) debug
 	@echo "Successfully purged files."
