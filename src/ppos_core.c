@@ -15,18 +15,20 @@ void ppos_init()
 #ifdef DEBUG
   printf("(ppos_init) inicializando sistema.\n");
 #endif
-
   setvbuf(stdout, 0, _IONBF, 0); // Desativa o buffer da saída padrão (stdout), usado pela função printf
 
   getcontext(&ppos.mainTask.context);               // Salva o contexto da tarefa main
-  ppos.taskCounter = 0;                             // Inicializa o contador de tarefas
   ppos.mainTask.id = 0;                             // ID da tarefa main
-  ppos.mainTask.staticPriority = PRIORITY_DEFAULT;  // Prioridade estática da tarefa corrente
-  ppos.mainTask.dynamicPriority = PRIORITY_DEFAULT; // Prioridade dinâmica da tarefa corrente
-  ppos.mainTask.type = USER_TASK;                   // Tipo da tarefa corrente
-  ppos.mainTask.status = RUNNING;                   // Status da tarefa corrente
-  ppos.mainTask.quanta = QUANTA_DEFAULT;            // Contador de quantum da tarefa corrente
-  ppos.currentTask = &(ppos.mainTask);              // Tarefa corrente é a main
+  ppos.mainTask.activations = 1;                    // Contador de ativações da tarefa main
+  ppos.mainTask.staticPriority = PRIORITY_DEFAULT;  // Prioridade estática da tarefa main
+  ppos.mainTask.dynamicPriority = PRIORITY_DEFAULT; // Prioridade dinâmica da tarefa main
+  ppos.mainTask.type = USER_TASK;                   // Tipo da tarefa main
+  ppos.mainTask.status = RUNNING;                   // Status da tarefa main
+  ppos.mainTask.quanta = QUANTA_DEFAULT;            // Contador de quantum da tarefa main
+
+  ppos.clock = 0;                      // Inicializa o clock do sistema
+  ppos.taskCounter = 0;                // Inicializa o contador de tarefas
+  ppos.currentTask = &(ppos.mainTask); // Tarefa corrente é a main
 
   ppos.readyQueue = NULL;
 
@@ -41,7 +43,7 @@ void ppos_init()
   printf("(ppos_init) inicializando tratador de sinais.\n");
 #endif
 
-  // Inicializa o tratador de sinais do clock
+  // Inicializa o tratador de sinais do timer
   ppos.signalHandler.sa_handler = tick_handler; // Função de tratamento de sinais
   sigemptyset(&ppos.signalHandler.sa_mask);     // Máscara de sinais a serem bloqueados durante a execução do sinal
   ppos.signalHandler.sa_flags = 0;              // Opções de chamadas de sistema
@@ -57,12 +59,12 @@ void ppos_init()
 #endif
 
   // Inicializa o temporizador
-  ppos.clock.it_value.tv_usec = CLOCK_FIRST_SHOT_U;  // Primeiro disparo, em micro-segundos
-  ppos.clock.it_value.tv_sec = CLOCK_FIRST_SHOT_S;   // Primeiro disparo, em segundos
-  ppos.clock.it_interval.tv_usec = CLOCK_INTERVAL_U; // Disparos subsequentes, em micro-segundos
-  ppos.clock.it_interval.tv_sec = CLOCK_INTERVAL_S;  // Disparos subsequentes, em segundos
+  ppos.timer.it_value.tv_usec = CLOCK_FIRST_SHOT_U;  // Primeiro disparo, em micro-segundos
+  ppos.timer.it_value.tv_sec = CLOCK_FIRST_SHOT_S;   // Primeiro disparo, em segundos
+  ppos.timer.it_interval.tv_usec = CLOCK_INTERVAL_U; // Disparos subsequentes, em micro-segundos
+  ppos.timer.it_interval.tv_sec = CLOCK_INTERVAL_S;  // Disparos subsequentes, em segundos
 
-  if (setitimer(ITIMER_REAL, &ppos.clock, 0) < 0)
+  if (setitimer(ITIMER_REAL, &ppos.timer, 0) < 0)
   {
     perror("(ppos_init) erro ao iniciar temporizador:");
     exit(1);
@@ -97,16 +99,24 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg)
 
   makecontext(&task->context, (void (*)(void))start_func, 1, arg); // Define a função que a tarefa deve executar
 
-  task->id = ++ppos.taskCounter;                               // ID da tarefa
-  task->staticPriority = PRIORITY_DEFAULT;                     // Prioridade estática da tarefa
-  task->dynamicPriority = PRIORITY_DEFAULT;                    // Prioridade dinâmica da tarefa
-  task->type = USER_TASK;                                      // Tipo da tarefa
+  task->birthTime = systime(); // Momento de criação da tarefa
+  task->deathTime = 0;         // Momento de término da tarefa
+  task->processorTime = 0;     // Tempo de processador da tarefa
+  task->activations = 0;       // Número de ativações da tarefa
+
+  task->type = USER_TASK;                   // Tipo da tarefa
+  task->staticPriority = PRIORITY_DEFAULT;  // Prioridade estática da tarefa
+  task->dynamicPriority = PRIORITY_DEFAULT; // Prioridade dinâmica da tarefa
+
+  task->quanta = 0;                                            // Contador de quantum da tarefa
   task->status = READY;                                        // Status da tarefa
   queue_append((queue_t **)&ppos.readyQueue, (queue_t *)task); // Adiciona a tarefa na fila de prontas
 
 #ifdef DEBUG
-  printf("(task_init) tarefa %d inicializada.\n", task->id);
+  printf("(task_init) tarefa %d inicializada; birthTime: %d.\n", task->id, task->birthTime);
 #endif
+
+  task->id = ++ppos.taskCounter; // ID da tarefa
 
   return task->id;
 }
@@ -129,9 +139,12 @@ int task_switch(task_t *task)
 
   task_t *temp = ppos.currentTask; // Salva a tarefa atual
 
-  ppos.currentTask = task;                     // Atualiza a tarefa corrente
-  ppos.currentTask->status = RUNNING;          // Atualiza o status da tarefa corrente
-  ppos.currentTask->quanta = QUANTA_DEFAULT;   // Reinicia o contador de quantum
+  task->activations++;           // Incrementa o contador de ativações da tarefa
+  task->status = RUNNING;        // Atualiza o status da tarefa corrente
+  task->quanta = QUANTA_DEFAULT; // Reinicia o contador de quantum
+
+  ppos.currentTask = task; // Atualiza a tarefa corrente
+
   swapcontext(&temp->context, &task->context); // Troca de contexto
 
   return 0;
@@ -143,8 +156,15 @@ void task_exit(int exit_code)
   if (exit_code != 0)
     printf("Tarefa %d terminada com erro: %d\n", ppos.currentTask->id, exit_code);
 
-  ppos.taskCounter--;                    // Decrementa o contador de tarefas
-  ppos.currentTask->status = TERMINATED; // Atualiza o status da tarefa corrente
+  ppos.taskCounter--;                      // Decrementa o contador de tarefas
+  ppos.currentTask->status = TERMINATED;   // Atualiza o status da tarefa corrente
+  ppos.currentTask->deathTime = systime(); // Atualiza o momento de término da tarefa corrente
+
+  printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n",
+         ppos.currentTask->id,
+         ppos.currentTask->deathTime - ppos.currentTask->birthTime,
+         ppos.currentTask->processorTime,
+         ppos.currentTask->activations);
 
   if (ppos.currentTask->id == ppos.dispatcherTask.id)
   {
@@ -193,6 +213,9 @@ void task_yield()
 // Trata os sinais do temporizador do sistema
 void tick_handler(int signum)
 {
+
+  ppos.clock++; // Incrementa o clock do sistema
+
 #ifdef DEBUG
   printf("(tick_handler) tarefa atual: %d - %d\n", ppos.currentTask->id, ppos.currentTask->quanta);
 #endif
@@ -211,24 +234,27 @@ void dispatcher(void *arg)
   printf("(dispatcher) iniciando dispatcher.\n");
 #endif
   task_t *nextTask = NULL;
+  unsigned int taskProcessorTimeInit = 0, taskProcessorTimeEnd = 0;
 
-  // Remove a tarefa dispatcher da fila de prontas
-  queue_remove((queue_t **)&ppos.readyQueue, (queue_t *)&ppos.dispatcherTask);
+  queue_remove((queue_t **)&ppos.readyQueue, (queue_t *)&ppos.dispatcherTask); // Remove a tarefa dispatcher da fila de prontas
 
   while (ppos.taskCounter > 0)
   {
-    nextTask = scheduler();
+    nextTask = scheduler(); // Seleciona a próxima tarefa a ser executada
 
     if (nextTask)
     {
-      queue_remove((queue_t **)&ppos.readyQueue, (queue_t *)nextTask); // Remove a tarefa atual da fila de prontas
-      task_switch(nextTask);                                           // Troca de contexto
+      queue_remove((queue_t **)&ppos.readyQueue, (queue_t *)nextTask);           // Remove a tarefa selecionada da fila de prontas
+      taskProcessorTimeInit = systime();                                         // Inicia a contagem do tempo de processador
+      task_switch(nextTask);                                                     // Troca de contexto para a tarefa selecionada
+      taskProcessorTimeEnd = systime();                                          // Finaliza a contagem do tempo de processador
+      nextTask->processorTime += (taskProcessorTimeEnd - taskProcessorTimeInit); // Atualiza o tempo de processador da tarefa selecionada
 
       // Trata o status da tarefa após a execução
       switch (nextTask->status)
       {
       case READY:
-        queue_append((queue_t **)&ppos.readyQueue, (queue_t *)nextTask); // Adiciona a tarefa na fila de prontas
+        queue_append((queue_t **)&ppos.readyQueue, (queue_t *)nextTask); // Adiciona a tarefa novamente na fila de prontas
         break;
       case TERMINATED:
         free(nextTask->context.uc_stack.ss_sp);  // Libera a pilha da tarefa
@@ -328,6 +354,7 @@ void task_setprio(task_t *task, int prio)
   else
     ppos.currentTask->staticPriority = prio; // Atribui a prioridade estática da tarefa corrente
 }
+
 // Retorna a prioridade estática de uma tarefa (ou a tarefa atual)
 int task_getprio(task_t *task)
 {
@@ -353,4 +380,15 @@ int task_to_age(task_t *task)
     task->dynamicPriority += PRIORITY_AGING;                                        // Envelhece a prioridade dinâmica da tarefa
 
   return 0;
+}
+
+// Retorna o tempo atual do sistema
+unsigned int systime()
+{
+  return ppos.clock; // Retorna o clock do sistema
+}
+
+unsigned int task_birth_time()
+{
+  return ppos.currentTask->birthTime; // Retorna o momento de criação da tarefa corrente
 }
