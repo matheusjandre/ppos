@@ -38,8 +38,8 @@
 #define CLOCK_INTERVAL_U 100000
 #define CLOCK_INTERVAL_S 0
 #else
-#define CLOCK_FIRST_SHOT_U 0
-#define CLOCK_FIRST_SHOT_S 1
+#define CLOCK_FIRST_SHOT_U 2000
+#define CLOCK_FIRST_SHOT_S 0
 #define CLOCK_INTERVAL_U 1000
 #define CLOCK_INTERVAL_S 0
 #endif
@@ -72,10 +72,14 @@ typedef struct task_t
   char staticPriority;        // prioridade estatica
   char dynamicPriority;       // prioridade dinamica
   unsigned char quanta;       // contador de quantum
+  unsigned int birthTime;     // momento de criação
+  unsigned int deathTime;     // momento de término
+  unsigned int processorTime; // tempo de processador
+  unsigned int activations;   // número de ativações
 } task_t;
 
 typedef struct sigaction ppos_signal_handler_t; // estrutura de tratadores de sinais
-typedef struct itimerval ppos_clock_t;          // estrutura de intervalo de tempo
+typedef struct itimerval ppos_timer_t;          // estrutura de intervalo de tempo
 
 // Estrutura que define as variáveis globais do sistema operacional
 typedef struct
@@ -84,7 +88,8 @@ typedef struct
   task_t mainTask, dispatcherTask, *currentTask;
   queue_t *readyQueue;
   ppos_signal_handler_t signalHandler;
-  ppos_clock_t clock;
+  ppos_timer_t timer;
+  unsigned int clock;
 } ppos_environment_t;
 
 // Estrutura que define um semáforo
@@ -122,5 +127,11 @@ int task_to_age(task_t *task);
 
 // Trata os sinais do temporizador do sistema
 void tick_handler(int signum);
+
+// Retorna o tempo atual do sistema
+unsigned int systime();
+
+// Retorna o tempo atual do sistema
+unsigned int task_birth_time();
 
 #endif
