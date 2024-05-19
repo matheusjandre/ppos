@@ -32,10 +32,15 @@
 #define PRIORITY_AGING -1  // valor de envelhecimento da prioridade
 
 // Tempo e Quantum de tempo para as tarefas
-#ifdef DEBUG
-#define CLOCK_FIRST_SHOT_U 100
+#ifdef SLOW
+#define CLOCK_FIRST_SHOT_U 2000
 #define CLOCK_FIRST_SHOT_S 0
 #define CLOCK_INTERVAL_U 100000
+#define CLOCK_INTERVAL_S 0
+#elif defined(FAST)
+#define CLOCK_FIRST_SHOT_U 200
+#define CLOCK_FIRST_SHOT_S 0
+#define CLOCK_INTERVAL_U 100
 #define CLOCK_INTERVAL_S 0
 #else
 #define CLOCK_FIRST_SHOT_U 2000

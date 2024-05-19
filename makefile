@@ -3,13 +3,14 @@
 
 PROGRAM = output
 MAIN = main.c
+VELOCITY = NORMAL
 
 LIB_DIR = lib
 OBJ_DIR = obj
 SRC_DIR = src
 
 COMP = gcc
-CFLAGS = -Wextra -std=gnu99
+CFLAGS = -Wextra -std=gnu99 -D$(VELOCITY)
 
 DEPS = queue.o ppos.o
 
