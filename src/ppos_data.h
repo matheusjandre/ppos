@@ -15,6 +15,7 @@
 // - Adicionado a função tick_handler para tratar os sinais do temporizador do sistema
 // - Adicionado a função systime para retornar o tempo atual do sistema
 // - Adicionado a função task_birth_time para retornar o tempo de criação da tarefa
+// - Adicionado as funções task_wait, task_suspend, task_awake para manipular o estado das tarefas
 
 // Estruturas de dados internas do sistema operacional
 #ifndef __PPOS_DATA__
@@ -83,6 +84,8 @@ typedef struct task_t
   unsigned int deathTime;     // Momento de término
   unsigned int processorTime; // Tempo de processador
   unsigned int activations;   // Número de ativações
+  unsigned int exitCode;      // Código de término
+  queue_t *waitingQueue;      // Fila de tarefas esperando por essa tarefa
 } task_t;
 
 typedef struct sigaction ppos_signal_handler_t; // Estrutura de tratadores de sinais

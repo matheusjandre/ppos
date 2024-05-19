@@ -57,6 +57,9 @@ void ppos_init()
   ppos.mainTask.status = RUNNING;                   // Status da tarefa main
   ppos.mainTask.quanta = QUANTA_DEFAULT;            // Contador de quantum da tarefa main
 
+  ppos.readyQueue = NULL;                                                // Inicializa a fila de tarefas prontas
+  queue_append((queue_t **)&ppos.readyQueue, (queue_t *)&ppos.mainTask); // Adiciona a tarefa main na fila de prontas
+
   ppos.clock = 0;                      // Inicializa o clock do sistema
   ppos.taskCounter = 0;                // Inicializa o contador de tarefas
   ppos.currentTask = &(ppos.mainTask); // Tarefa corrente é a main
@@ -201,12 +204,21 @@ int task_switch(task_t *task)
 // Termina a tarefa corrente com um status de encerramento
 void task_exit(int exit_code)
 {
-  if (exit_code != 0)
+  if (exit_code < 0)
     printf("Tarefa %d terminada com erro: %d\n", ppos.currentTask->id, exit_code);
 
   ppos.taskCounter--;                      // Decrementa o contador de tarefas
   ppos.currentTask->status = TERMINATED;   // Atualiza o status da tarefa corrente
   ppos.currentTask->deathTime = systime(); // Atualiza o momento de término da tarefa corrente
+  ppos.currentTask->exitCode = exit_code;  // Atualiza o código de término da tarefa corrente
+
+  // every task in waitingQueue must be awaken
+  task_t *tempTask = (task_t *)ppos.currentTask->waitingQueue;
+  while (tempTask)
+  {
+    task_awake(tempTask, (task_t **)&ppos.currentTask->waitingQueue);
+    tempTask = (task_t *)ppos.currentTask->waitingQueue;
+  }
 
   printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n",
          ppos.currentTask->id,
@@ -310,6 +322,10 @@ void dispatcher(void *arg)
         currentTask->context.uc_stack.ss_size = 0;  // Reseta o tamanho da pilha
         currentTask = NULL;                         // Reseta o ponteiro da tarefa
         break;
+      case SUSPENDED:
+#if defined(DEBUG_DISPATCHER) || defined(DEBUG_ALL)
+        debug_print("(dispatcher) status da tarefa %d: SUSPENSA\n", currentTask->id);
+#endif
         break;
       default:
 #if defined(DEBUG_DISPATCHER) || defined(DEBUG_ALL)
@@ -441,4 +457,84 @@ unsigned int systime()
 unsigned int task_birth_time()
 {
   return ppos.currentTask->birthTime; // Retorna o momento de criação da tarefa corrente
+}
+
+// Suspende a tarefa corrente e aguarda o encerramento de outra tarefa
+int task_wait(task_t *task)
+{
+  if (!task) // Se a tarefa não existir
+  {
+    perror("(task_wait) tarefa inexistente:");
+    return -1;
+  }
+
+  if (task->status == TERMINATED) // Se a tarefa estiver terminada
+  {
+    perror("(task_wait) tarefa já terminada:");
+    return -2;
+  }
+
+#if defined(DEBUG_TASK_WAIT) || defined(DEBUG_ALL)
+  debug_print("(task_wait) tarefa %d aguardando término da tarefa %d.\n", ppos.currentTask->id, task->id);
+#endif
+
+  task_suspend((task_t **)&task->waitingQueue); // Suspende a tarefa corrente e adiciona na fila de espera da tarefa passada
+
+  return task->exitCode;
+}
+
+// suspende a tarefa atual,
+// transferindo-a da fila de prontas para a fila "queue"
+void task_suspend(task_t **queue)
+{
+  if (!queue) // Se a fila não existir
+  {
+    perror("(task_suspend) fila inexistente:");
+    return;
+  }
+
+#if defined(DEBUG_TASK_SUSPEND) || defined(DEBUG_ALL)
+  debug_print("(task_suspend) tarefa %d suspendendo.\n", ppos.currentTask->id);
+#endif
+
+  ppos.currentTask->status = SUSPENDED;                         // Atualiza o status da tarefa corrente
+  queue_append((queue_t **)queue, (queue_t *)ppos.currentTask); // Adiciona a tarefa corrente na fila passada
+
+#if defined(DEBUG_TASK_SUSPEND) || defined(DEBUG_ALL)
+  debug_print("(task_suspend) tarefa %d suspensa.\n", ppos.currentTask->id);
+#endif
+
+  task_switch(&ppos.dispatcherTask); // Troca de contexto para o dispatcher
+}
+
+// acorda a tarefa indicada,
+// trasferindo-a da fila "queue" para a fila de prontas
+void task_awake(task_t *task, task_t **queue)
+{
+  if (!queue) // Se a fila não existir
+  {
+    perror("(task_awake) fila inexistente:");
+    return;
+  }
+
+  if (!task) // Se a tarefa não existir
+  {
+    perror("(task_awake) tarefa inexistente:");
+    return;
+  }
+
+  int queueRemoveStatus = queue_remove((queue_t **)queue, (queue_t *)task); // Remove a tarefa da fila passada
+
+  if (queueRemoveStatus < 0) // Se houver erro ao remover a tarefa da fila passada
+  {
+    perror("(task_awake) erro ao acordar tarefa:");
+    return;
+  }
+
+  task->status = READY;                                        // Atualiza o status da tarefa
+  queue_append((queue_t **)&ppos.readyQueue, (queue_t *)task); // Adiciona a tarefa na fila de prontas
+
+#if defined(DEBUG_TASK_AWAKE) || defined(DEBUG_ALL)
+  debug_print("(task_awake) tarefa %d acordada.\n", task->id);
+#endif
 }
