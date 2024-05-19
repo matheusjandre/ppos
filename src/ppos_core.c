@@ -21,6 +21,7 @@ ppos_environment_t ppos; // Variáveis globais do sistema operacional
     defined(DEBUG_TASK_AWAKE) ||   \
     defined(DEBUG_TASK_SUSPEND) || \
     defined(DEBUG_TASK_WAIT) ||    \
+    defined(DEBUG_TASK_SLEEP) ||   \
     defined(DEBUG_ALL)
 
 #include <stdarg.h>
@@ -54,22 +55,21 @@ void ppos_init()
   ppos.mainTask.staticPriority = PRIORITY_DEFAULT;  // Prioridade estática da tarefa main
   ppos.mainTask.dynamicPriority = PRIORITY_DEFAULT; // Prioridade dinâmica da tarefa main
   ppos.mainTask.type = USER_TASK;                   // Tipo da tarefa main
-  ppos.mainTask.status = RUNNING;                   // Status da tarefa main
+  ppos.mainTask.status = READY;                     // Status da tarefa main
   ppos.mainTask.quanta = QUANTA_DEFAULT;            // Contador de quantum da tarefa main
+
+  ppos.taskCounter = 1; // Inicializa o contador de tarefas
 
   ppos.readyQueue = NULL;                                                // Inicializa a fila de tarefas prontas
   queue_append((queue_t **)&ppos.readyQueue, (queue_t *)&ppos.mainTask); // Adiciona a tarefa main na fila de prontas
+  ppos.currentTask = &(ppos.mainTask);                                   // Tarefa corrente é a main
 
-  ppos.clock = 0;                      // Inicializa o clock do sistema
-  ppos.taskCounter = 0;                // Inicializa o contador de tarefas
-  ppos.currentTask = &(ppos.mainTask); // Tarefa corrente é a main
+  int dispatcherId = task_init(&ppos.dispatcherTask, dispatcher, NULL); // Cria a tarefa dispatcher
+  ppos.dispatcherTask.type = SYSTEM_TASK;                               // Atribui o tipo da tarefa dispatcher como tarea do sistema
 
 #if defined(DEBUG_PPOS_INIT) || defined(DEBUG_ALL)
-  debug_print("(ppos_init) criando dispatcher.\n");
+  debug_print("(ppos_init) dispatcher inicializado com id: %d.\n", dispatcherId);
 #endif
-
-  task_init(&ppos.dispatcherTask, dispatcher, NULL); // Cria a tarefa dispatcher
-  ppos.dispatcherTask.type = SYSTEM_TASK;            // Atribui o tipo da tarefa dispatcher como tarea do sistema
 
 #if defined(DEBUG_PPOS_INIT) || defined(DEBUG_ALL)
   debug_print("(ppos_init) inicializando tratador de sinais.\n");
@@ -91,6 +91,7 @@ void ppos_init()
 #endif
 
   // Inicializa o temporizador
+  ppos.clock = 0;                                    // Inicializa o clock do sistema
   ppos.timer.it_value.tv_usec = CLOCK_FIRST_SHOT_U;  // Primeiro disparo, em micro-segundos
   ppos.timer.it_value.tv_sec = CLOCK_FIRST_SHOT_S;   // Primeiro disparo, em segundos
   ppos.timer.it_interval.tv_usec = CLOCK_INTERVAL_U; // Disparos subsequentes, em micro-segundos
@@ -108,6 +109,8 @@ void ppos_init()
   debug_print("(ppos_init) taskCounter: %d\n", ppos.taskCounter);
   debug_print("(ppos_init) sistema inicializado -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
 #endif
+
+  task_switch(&ppos.dispatcherTask); // Troca de contexto para o dispatcher
 }
 
 // Inicializa uma nova tarefa. Retorna um ID > 0 ou erro.
@@ -131,10 +134,14 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg)
 
   makecontext(&task->context, (void (*)(void))start_func, 1, arg); // Define a função que a tarefa deve executar
 
-  task->birthTime = systime(); // Momento de criação da tarefa
-  task->deathTime = 0;         // Momento de término da tarefa
-  task->processorTime = 0;     // Tempo de processador da tarefa
-  task->activations = 0;       // Número de ativações da tarefa
+  task->id = ppos.dispatcherTask.id + ppos.taskCounter; // ID da tarefa
+  task->birthTime = systime();                          // Momento de criação da tarefa
+  task->deathTime = 0;                                  // Momento de término da tarefa
+  task->processorTime = 0;                              // Tempo de processador da tarefa
+  task->activations = 0;                                // Número de ativações da tarefa
+  task->exitCode = 0;                                   // Código de término da tarefa
+  task->waitingQueue = NULL;                            // Fila de tarefas esperando por essa tarefa
+  task->wakeTime = 0;                                   // Momento de acordar da tarefa
 
   task->type = USER_TASK;                   // Tipo da tarefa
   task->staticPriority = PRIORITY_DEFAULT;  // Prioridade estática da tarefa
@@ -148,8 +155,7 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg)
   debug_print("(task_init) tarefa %d inicializada; birthTime: %d.\n", task->id, task->birthTime);
 #endif
 
-  task->id = ++ppos.taskCounter; // ID da tarefa
-
+  ppos.taskCounter++; // Incrementa o contador de tarefas
   return task->id;
 }
 
@@ -236,6 +242,7 @@ void task_exit(int exit_code)
 
 #if defined(DEBUG_TASK_EXIT) || defined(DEBUG_ALL)
   debug_print("(task_exit) tarefa %d finalizada.\n", ppos.currentTask->id);
+  debug_print("(task_exit) quantidade de tarefas restantes: %d\n", ppos.taskCounter);
 #endif
 
   task_switch(&ppos.dispatcherTask); // Volta para o dispatcher
@@ -297,10 +304,16 @@ void dispatcher(void *arg)
   unsigned int taskProcessorTimeInit = 0, taskProcessorTimeEnd = 0;
 
   queue_remove((queue_t **)&ppos.readyQueue, (queue_t *)&ppos.dispatcherTask); // Remove a tarefa dispatcher da fila de prontas
+  ppos.taskCounter--;                                                          // Decrementa o contador de tarefas
 
   while (ppos.taskCounter > 0)
   {
+    check_sleeping_tasks();    // Acorda as tarefas que já passaram do tempo de acordar
     currentTask = scheduler(); // Seleciona a próxima tarefa a ser executada
+
+#if defined(DEBUG_DISPATCHER) || defined(DEBUG_ALL)
+    debug_print("(dispatcher) próxima tarefa: %d\n", currentTask->id);
+#endif
 
     if (currentTask)
     {
@@ -450,13 +463,13 @@ int task_to_age(task_t *task)
 // Retorna o tempo atual do sistema
 unsigned int systime()
 {
-  return ppos.clock; // Retorna o clock do sistema
+  return ppos.clock;
 }
 
 // Retorna o tempo de criação da tarefa corrente
 unsigned int task_birth_time()
 {
-  return ppos.currentTask->birthTime; // Retorna o momento de criação da tarefa corrente
+  return ppos.currentTask->birthTime;
 }
 
 // Suspende a tarefa corrente e aguarda o encerramento de outra tarefa
@@ -468,17 +481,12 @@ int task_wait(task_t *task)
     return -1;
   }
 
-  if (task->status == TERMINATED) // Se a tarefa estiver terminada
-  {
-    perror("(task_wait) tarefa já terminada:");
-    return -2;
-  }
+  if (task->status != TERMINATED)                 // Se a tarefa estiver terminada
+    task_suspend((task_t **)&task->waitingQueue); // Suspende a tarefa corrente e adiciona na fila de espera da tarefa passada
 
 #if defined(DEBUG_TASK_WAIT) || defined(DEBUG_ALL)
   debug_print("(task_wait) tarefa %d aguardando término da tarefa %d.\n", ppos.currentTask->id, task->id);
 #endif
-
-  task_suspend((task_t **)&task->waitingQueue); // Suspende a tarefa corrente e adiciona na fila de espera da tarefa passada
 
   return task->exitCode;
 }
@@ -500,10 +508,6 @@ void task_suspend(task_t **queue)
   ppos.currentTask->status = SUSPENDED;                         // Atualiza o status da tarefa corrente
   queue_append((queue_t **)queue, (queue_t *)ppos.currentTask); // Adiciona a tarefa corrente na fila passada
 
-#if defined(DEBUG_TASK_SUSPEND) || defined(DEBUG_ALL)
-  debug_print("(task_suspend) tarefa %d suspensa.\n", ppos.currentTask->id);
-#endif
-
   task_switch(&ppos.dispatcherTask); // Troca de contexto para o dispatcher
 }
 
@@ -523,18 +527,68 @@ void task_awake(task_t *task, task_t **queue)
     return;
   }
 
-  int queueRemoveStatus = queue_remove((queue_t **)queue, (queue_t *)task); // Remove a tarefa da fila passada
-
-  if (queueRemoveStatus < 0) // Se houver erro ao remover a tarefa da fila passada
+  if (queue_remove((queue_t **)queue, (queue_t *)task) < 0) // Se houver erro ao remover a tarefa da fila passada
   {
     perror("(task_awake) erro ao acordar tarefa:");
     return;
   }
 
   task->status = READY;                                        // Atualiza o status da tarefa
+  task->wakeTime = 0;                                          // Reseta o momento de acordar da tarefa
   queue_append((queue_t **)&ppos.readyQueue, (queue_t *)task); // Adiciona a tarefa na fila de prontas
 
 #if defined(DEBUG_TASK_AWAKE) || defined(DEBUG_ALL)
   debug_print("(task_awake) tarefa %d acordada.\n", task->id);
 #endif
+}
+
+// suspende a tarefa corrente por t milissegundos
+void task_sleep(int t)
+{
+  if (t < 0) // Se o tempo for menor ou igual a zero
+  {
+    perror("(task_sleep) tempo inválido:");
+    return;
+  }
+
+  ppos.currentTask->wakeTime = systime() + t;   // Atualiza o momento de acordar da tarefa corrente
+  task_suspend((task_t **)&ppos.sleepingQueue); // Suspende a tarefa corrente e adiciona na fila de espera
+
+#if defined(DEBUG_TASK_SLEEP) || defined(DEBUG_ALL)
+  debug_print("(task_sleep) tarefa %d dormindo por %d ms.\n", ppos.currentTask->id, t);
+#endif
+}
+
+// Acorda todas as tarefas dormindo que já passaram do tempo de acordar
+void check_sleeping_tasks()
+{
+  task_t *nextTask, *wakeTask;
+
+  if (queue_size((queue_t *)ppos.sleepingQueue) == 0) // Se a fila de tarefas dormindo estiver vazia não faz nada
+    return;
+
+  nextTask = (task_t *)ppos.sleepingQueue;
+
+  do
+  {
+    if (nextTask->wakeTime <= systime()) // Se a tarefa já passou do tempo de acordar
+    {
+      wakeTask = nextTask; // Salva a tarefa a ser acordada
+
+#if defined(DEBUG_TASK_SLEEP) || defined(DEBUG_ALL)
+      debug_print("(check_sleeping_tasks) tarefa %d acordando.\n", wakeTask->id);
+#endif
+
+      nextTask = nextTask->next;                            // Avança para a próxima tarefa
+      task_awake(wakeTask, (task_t **)&ppos.sleepingQueue); // Acorda a tarefa
+
+      if (queue_size((queue_t *)ppos.sleepingQueue) == 0) // Se a fila de tarefas dormindo estiver vazia sai do loop
+        break;
+    }
+    else
+    {
+      nextTask = nextTask->next; // Avança para a próxima tarefa
+    }
+
+  } while (nextTask != (task_t *)ppos.sleepingQueue); // Enquanto não percorrer toda a fila de tarefas dormindo
 }

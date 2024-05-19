@@ -16,6 +16,8 @@
 // - Adicionado a função systime para retornar o tempo atual do sistema
 // - Adicionado a função task_birth_time para retornar o tempo de criação da tarefa
 // - Adicionado as funções task_wait, task_suspend, task_awake para manipular o estado das tarefas
+// - Adicionado a função task_sleep para dormir a tarefa por um tempo
+// - Adicionado a função check_sleeping_tasks para acordar todas as tarefas dormindo que já passaram do tempo de acordar
 
 // Estruturas de dados internas do sistema operacional
 #ifndef __PPOS_DATA__
@@ -86,6 +88,7 @@ typedef struct task_t
   unsigned int activations;   // Número de ativações
   unsigned int exitCode;      // Código de término
   queue_t *waitingQueue;      // Fila de tarefas esperando por essa tarefa
+  unsigned int wakeTime;      // Momento de acordar
 } task_t;
 
 typedef struct sigaction ppos_signal_handler_t; // Estrutura de tratadores de sinais
@@ -97,6 +100,7 @@ typedef struct
   unsigned int taskCounter;
   task_t mainTask, dispatcherTask, *currentTask;
   queue_t *readyQueue;
+  queue_t *sleepingQueue;
   ppos_signal_handler_t signalHandler;
   ppos_timer_t timer;
   unsigned int clock;
@@ -143,5 +147,8 @@ unsigned int systime();
 
 // Retorna o tempo atual do sistema
 unsigned int task_birth_time();
+
+// Acorda todas as tarefas dormindo que já passaram do tempo de acordar
+void check_sleeping_tasks();
 
 #endif
