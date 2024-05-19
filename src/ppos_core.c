@@ -526,9 +526,7 @@ void task_awake(task_t *task, task_t **queue)
     return;
   }
 
-  int queueRemoveStatus = queue_remove((queue_t **)queue, (queue_t *)task); // Remove a tarefa da fila passada
-
-  if (queueRemoveStatus < 0) // Se houver erro ao remover a tarefa da fila passada
+  if (queue_remove((queue_t **)queue, (queue_t *)task) < 0) // Se houver erro ao remover a tarefa da fila passada
   {
     perror("(task_awake) erro ao acordar tarefa:");
     return;
