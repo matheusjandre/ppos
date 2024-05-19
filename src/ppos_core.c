@@ -9,11 +9,42 @@
 
 ppos_environment_t ppos; // Variáveis globais do sistema operacional
 
+#if defined(DEBUG_PPOS_INIT) ||    \
+    defined(DEBUG_TASK_INIT) ||    \
+    defined(DEBUG_TASK_SWITCH) ||  \
+    defined(DEBUG_TASK_EXIT) ||    \
+    defined(DEBUG_TASK_YIELD) ||   \
+    defined(DEBUG_TICK_HANDLER) || \
+    defined(DEBUG_DISPATCHER) ||   \
+    defined(DEBUG_SCHEDULER) ||    \
+    defined(DEBUG_TASK_SETPRIO) || \
+    defined(DEBUG_TASK_AWAKE) ||   \
+    defined(DEBUG_TASK_SUSPEND) || \
+    defined(DEBUG_TASK_WAIT) ||    \
+    defined(DEBUG_ALL)
+
+#include <stdarg.h>
+
+void debug_print(const char *format, ...)
+{
+  char buffer[256];              // Variavel para armazenar a string formatada
+  char color[10] = "\033[1;34m"; // Variavel para armazenar o código de cor (Azul)
+  char clear[10] = "\033[0m";    // Variavel para armazenar o código de cor (Padrão)
+
+  va_list args;
+  va_start(args, format);
+  vsnprintf(buffer, sizeof(buffer), format, args); // Formata a string
+  va_end(args);
+
+  printf("%s%s%s", color, buffer, clear); // Printa a string formatada com a cor azul
+}
+#endif
+
 // Inicializa o sistema operacional; deve ser chamada no inicio do main()
 void ppos_init()
 {
-#ifdef DEBUG
-  printf("(ppos_init) inicializando sistema.\n");
+#if defined(DEBUG_PPOS_INIT) || defined(DEBUG_ALL)
+  debug_print("(ppos_init) inicializando sistema.\n");
 #endif
   setvbuf(stdout, 0, _IONBF, 0); // Desativa o buffer da saída padrão (stdout), usado pela função printf
 
@@ -26,21 +57,22 @@ void ppos_init()
   ppos.mainTask.status = RUNNING;                   // Status da tarefa main
   ppos.mainTask.quanta = QUANTA_DEFAULT;            // Contador de quantum da tarefa main
 
+  ppos.readyQueue = NULL;                                                // Inicializa a fila de tarefas prontas
+  queue_append((queue_t **)&ppos.readyQueue, (queue_t *)&ppos.mainTask); // Adiciona a tarefa main na fila de prontas
+
   ppos.clock = 0;                      // Inicializa o clock do sistema
   ppos.taskCounter = 0;                // Inicializa o contador de tarefas
   ppos.currentTask = &(ppos.mainTask); // Tarefa corrente é a main
 
-  ppos.readyQueue = NULL;
-
-#ifdef DEBUG
-  printf("(ppos_init) criando dispatcher.\n");
+#if defined(DEBUG_PPOS_INIT) || defined(DEBUG_ALL)
+  debug_print("(ppos_init) criando dispatcher.\n");
 #endif
 
   task_init(&ppos.dispatcherTask, dispatcher, NULL); // Cria a tarefa dispatcher
   ppos.dispatcherTask.type = SYSTEM_TASK;            // Atribui o tipo da tarefa dispatcher como tarea do sistema
 
-#ifdef DEBUG
-  printf("(ppos_init) inicializando tratador de sinais.\n");
+#if defined(DEBUG_PPOS_INIT) || defined(DEBUG_ALL)
+  debug_print("(ppos_init) inicializando tratador de sinais.\n");
 #endif
 
   // Inicializa o tratador de sinais do timer
@@ -54,8 +86,8 @@ void ppos_init()
     exit(1);
   }
 
-#ifdef DEBUG
-  printf("(ppos_init) inicializando temporizador.\n");
+#if defined(DEBUG_PPOS_INIT) || defined(DEBUG_ALL)
+  debug_print("(ppos_init) inicializando temporizador.\n");
 #endif
 
   // Inicializa o temporizador
@@ -70,11 +102,11 @@ void ppos_init()
     exit(1);
   }
 
-#ifdef DEBUG
-  printf("(ppos_init) mainTaskId: %d\n", ppos.mainTask.id);
-  printf("(ppos_init) currentTaskId: %d\n", ppos.currentTask->id);
-  printf("(ppos_init) taskCounter: %d\n", ppos.taskCounter);
-  printf("(ppos_init) sistema inicializado -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
+#if defined(DEBUG_PPOS_INIT) || defined(DEBUG_ALL)
+  debug_print("(ppos_init) mainTaskId: %d\n", ppos.mainTask.id);
+  debug_print("(ppos_init) currentTaskId: %d\n", ppos.currentTask->id);
+  debug_print("(ppos_init) taskCounter: %d\n", ppos.taskCounter);
+  debug_print("(ppos_init) sistema inicializado -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
 #endif
 }
 
@@ -112,8 +144,8 @@ int task_init(task_t *task, void (*start_func)(void *), void *arg)
   task->status = READY;                                        // Status da tarefa
   queue_append((queue_t **)&ppos.readyQueue, (queue_t *)task); // Adiciona a tarefa na fila de prontas
 
-#ifdef DEBUG
-  printf("(task_init) tarefa %d inicializada; birthTime: %d.\n", task->id, task->birthTime);
+#if defined(DEBUG_TASK_INIT) || defined(DEBUG_ALL)
+  debug_print("(task_init) tarefa %d inicializada; birthTime: %d.\n", task->id, task->birthTime);
 #endif
 
   task->id = ++ppos.taskCounter; // ID da tarefa
@@ -130,11 +162,30 @@ int task_switch(task_t *task)
     return -1;
   }
 
-#ifdef DEBUG
-  if ((unsigned int)task_id() == ppos.dispatcherTask.id)
-    printf("(task_switch) trocando de DISPATCHER para %d.\n", task->id);
+#if defined(DEBUG_TASK_SWITCH) || defined(DEBUG_ALL)
+  if ((unsigned int)task_id() == ppos.mainTask.id)
+  {
+    if (task->id == ppos.dispatcherTask.id)
+      debug_print("(task_switch) trocando de MAIN para DISPATCHER.\n");
+    else
+      debug_print("(task_switch) trocando de MAIN para %d.\n", task->id);
+  }
+  else if ((unsigned int)task_id() == ppos.dispatcherTask.id)
+  {
+    if (task->id == ppos.mainTask.id)
+      debug_print("(task_switch) trocando de DISPATCHER para MAIN.\n");
+    else
+      debug_print("(task_switch) trocando de DISPATCHER para %d.\n", task->id);
+  }
   else
-    printf("(task_switch) trocando de %d para DISPATCHER.\n", ppos.currentTask->id);
+  {
+    if (task->id == ppos.dispatcherTask.id)
+      debug_print("(task_switch) trocando de %d para DISPATCHER.\n", (unsigned int)task_id());
+    else if (task->id == ppos.mainTask.id)
+      debug_print("(task_switch) trocando de %d para MAIN.\n", (unsigned int)task_id());
+    else
+      debug_print("(task_switch) trocando de %d para %d.\n", (unsigned int)task_id(), task->id);
+  }
 #endif
 
   task_t *temp = ppos.currentTask; // Salva a tarefa atual
@@ -153,12 +204,21 @@ int task_switch(task_t *task)
 // Termina a tarefa corrente com um status de encerramento
 void task_exit(int exit_code)
 {
-  if (exit_code != 0)
+  if (exit_code < 0)
     printf("Tarefa %d terminada com erro: %d\n", ppos.currentTask->id, exit_code);
 
   ppos.taskCounter--;                      // Decrementa o contador de tarefas
   ppos.currentTask->status = TERMINATED;   // Atualiza o status da tarefa corrente
   ppos.currentTask->deathTime = systime(); // Atualiza o momento de término da tarefa corrente
+  ppos.currentTask->exitCode = exit_code;  // Atualiza o código de término da tarefa corrente
+
+  // every task in waitingQueue must be awaken
+  task_t *tempTask = (task_t *)ppos.currentTask->waitingQueue;
+  while (tempTask)
+  {
+    task_awake(tempTask, (task_t **)&ppos.currentTask->waitingQueue);
+    tempTask = (task_t *)ppos.currentTask->waitingQueue;
+  }
 
   printf("Task %d exit: execution time %d ms, processor time %d ms, %d activations\n",
          ppos.currentTask->id,
@@ -168,14 +228,14 @@ void task_exit(int exit_code)
 
   if (ppos.currentTask->id == ppos.dispatcherTask.id)
   {
-#ifdef DEBUG
-    printf("(task_exit) encerrando sistema.\n");
+#if defined(DEBUG_TASK_EXIT) || defined(DEBUG_ALL)
+    debug_print("(task_exit) encerrando sistema.\n");
 #endif
     exit(exit_code); // Encerra o sistema
   }
 
-#ifdef DEBUG
-  printf("(task_exit) tarefa %d finalizada.\n", ppos.currentTask->id);
+#if defined(DEBUG_TASK_EXIT) || defined(DEBUG_ALL)
+  debug_print("(task_exit) tarefa %d finalizada.\n", ppos.currentTask->id);
 #endif
 
   task_switch(&ppos.dispatcherTask); // Volta para o dispatcher
@@ -202,8 +262,8 @@ void task_yield()
     return;
   }
 
-#ifdef DEBUG
-  printf("(task_yield) tarefa %d liberou o processador.\n", ppos.currentTask->id);
+#if defined(DEBUG_TASK_YIELD) || defined(DEBUG_ALL)
+  debug_print("(task_yield) tarefa %d liberou o processador.\n", ppos.currentTask->id);
 #endif
 
   ppos.currentTask->status = READY;  // Atualiza o status da tarefa corrente
@@ -216,8 +276,8 @@ void tick_handler(int signum)
 
   ppos.clock++; // Incrementa o clock do sistema
 
-#ifdef DEBUG
-  printf("(tick_handler) tarefa atual: %d - %d\n", ppos.currentTask->id, ppos.currentTask->quanta);
+#if defined(DEBUG_TICK_HANDLER) || defined(DEBUG_ALL)
+  debug_print("(tick_handler) tarefa atual: %d - %d\n", ppos.currentTask->id, ppos.currentTask->quanta);
 #endif
 
   // Checa se a tarefa corrente é do tipo sistema ou se o contador de quantum é maior que zero
@@ -230,50 +290,55 @@ void tick_handler(int signum)
 // Dispatcher do sistema operacional
 void dispatcher(void *arg)
 {
-#ifdef DEBUG
-  printf("(dispatcher) iniciando dispatcher.\n");
+#if defined(DEBUG_DISPATCHER) || defined(DEBUG_ALL)
+  debug_print("(dispatcher) iniciando dispatcher.\n");
 #endif
-  task_t *nextTask = NULL;
+  task_t *currentTask = NULL;
   unsigned int taskProcessorTimeInit = 0, taskProcessorTimeEnd = 0;
 
   queue_remove((queue_t **)&ppos.readyQueue, (queue_t *)&ppos.dispatcherTask); // Remove a tarefa dispatcher da fila de prontas
 
   while (ppos.taskCounter > 0)
   {
-    nextTask = scheduler(); // Seleciona a próxima tarefa a ser executada
+    currentTask = scheduler(); // Seleciona a próxima tarefa a ser executada
 
-    if (nextTask)
+    if (currentTask)
     {
-      queue_remove((queue_t **)&ppos.readyQueue, (queue_t *)nextTask);           // Remove a tarefa selecionada da fila de prontas
-      taskProcessorTimeInit = systime();                                         // Inicia a contagem do tempo de processador
-      task_switch(nextTask);                                                     // Troca de contexto para a tarefa selecionada
-      taskProcessorTimeEnd = systime();                                          // Finaliza a contagem do tempo de processador
-      nextTask->processorTime += (taskProcessorTimeEnd - taskProcessorTimeInit); // Atualiza o tempo de processador da tarefa selecionada
+      queue_remove((queue_t **)&ppos.readyQueue, (queue_t *)currentTask);           // Remove a tarefa selecionada da fila de prontas
+      taskProcessorTimeInit = systime();                                            // Inicia a contagem do tempo de processador
+      task_switch(currentTask);                                                     // Troca de contexto para a tarefa selecionada
+      taskProcessorTimeEnd = systime();                                             // Finaliza a contagem do tempo de processador
+      currentTask->processorTime += (taskProcessorTimeEnd - taskProcessorTimeInit); // Atualiza o tempo de processador da tarefa selecionada
 
       // Trata o status da tarefa após a execução
-      switch (nextTask->status)
+      switch (currentTask->status)
       {
       case READY:
-        queue_append((queue_t **)&ppos.readyQueue, (queue_t *)nextTask); // Adiciona a tarefa novamente na fila de prontas
+        queue_append((queue_t **)&ppos.readyQueue, (queue_t *)currentTask); // Adiciona a tarefa novamente na fila de prontas
         break;
       case TERMINATED:
-        free(nextTask->context.uc_stack.ss_sp);  // Libera a pilha da tarefa
-        nextTask->context.uc_stack.ss_sp = NULL; // Reseta o ponteiro da pilha
-        nextTask->context.uc_stack.ss_size = 0;  // Reseta o tamanho da pilha
-        nextTask = NULL;                         // Reseta o ponteiro da tarefa
+        free(currentTask->context.uc_stack.ss_sp);  // Libera a pilha da tarefa
+        currentTask->context.uc_stack.ss_sp = NULL; // Reseta o ponteiro da pilha
+        currentTask->context.uc_stack.ss_size = 0;  // Reseta o tamanho da pilha
+        currentTask = NULL;                         // Reseta o ponteiro da tarefa
+        break;
+      case SUSPENDED:
+#if defined(DEBUG_DISPATCHER) || defined(DEBUG_ALL)
+        debug_print("(dispatcher) status da tarefa %d: SUSPENSA\n", currentTask->id);
+#endif
         break;
       default:
-#ifdef DEBUG
-        printf("(dispatcher) status da tarefa %d: %d\n", nextTask->id, nextTask->status);
+#if defined(DEBUG_DISPATCHER) || defined(DEBUG_ALL)
+        debug_print("(dispatcher) status da tarefa %d: %d\n", currentTask->id, currentTask->status);
 #endif
         break;
       }
     }
   }
 
-#ifdef DEBUG
-  printf("(dispatcher) não há mais tarefas para executar.\n");
-  printf("(dispatcher) encerrando dispatcher.\n");
+#if defined(DEBUG_DISPATCHER) || defined(DEBUG_ALL)
+  debug_print("(dispatcher) não há mais tarefas para executar.\n");
+  debug_print("(dispatcher) encerrando dispatcher.\n");
 #endif
 
   task_exit(0);
@@ -309,14 +374,14 @@ task_t *scheduler()
     selectedTask->dynamicPriority = PRIORITY_DEFAULT; // Reseta a prioridade dinâmica da tarefa selecionada
   }
 
-#ifdef DEBUG
+#if defined(DEBUG_SCHEDULER) || defined(DEBUG_ALL)
   if (selectedTask)
   {
-    printf("(scheduler) próxima tarefa a ser executada: %d.\n", selectedTask->id);
+    debug_print("(scheduler) próxima tarefa a ser executada: %d.\n", selectedTask->id);
   }
   else
   {
-    printf("(scheduler) não há tarefas para executar.\n");
+    debug_print("(scheduler) não há tarefas para executar.\n");
   }
 #endif
 
@@ -344,9 +409,9 @@ void task_setprio(task_t *task, int prio)
     return;
   }
 
-#ifdef DEBUG
+#if defined(DEBUG_TASK_SETPRIO) || defined(DEBUG_ALL)
   int id = task ? task->id : ppos.currentTask->id;
-  printf("(task_setprio) prioridade da tarefa %d alterada para %d.\n", id, prio);
+  debug_print("(task_setprio) prioridade da tarefa %d alterada para %d.\n", id, prio);
 #endif
 
   if (task)
@@ -388,7 +453,88 @@ unsigned int systime()
   return ppos.clock; // Retorna o clock do sistema
 }
 
+// Retorna o tempo de criação da tarefa corrente
 unsigned int task_birth_time()
 {
   return ppos.currentTask->birthTime; // Retorna o momento de criação da tarefa corrente
+}
+
+// Suspende a tarefa corrente e aguarda o encerramento de outra tarefa
+int task_wait(task_t *task)
+{
+  if (!task) // Se a tarefa não existir
+  {
+    perror("(task_wait) tarefa inexistente:");
+    return -1;
+  }
+
+  if (task->status == TERMINATED) // Se a tarefa estiver terminada
+  {
+    perror("(task_wait) tarefa já terminada:");
+    return -2;
+  }
+
+#if defined(DEBUG_TASK_WAIT) || defined(DEBUG_ALL)
+  debug_print("(task_wait) tarefa %d aguardando término da tarefa %d.\n", ppos.currentTask->id, task->id);
+#endif
+
+  task_suspend((task_t **)&task->waitingQueue); // Suspende a tarefa corrente e adiciona na fila de espera da tarefa passada
+
+  return task->exitCode;
+}
+
+// suspende a tarefa atual,
+// transferindo-a da fila de prontas para a fila "queue"
+void task_suspend(task_t **queue)
+{
+  if (!queue) // Se a fila não existir
+  {
+    perror("(task_suspend) fila inexistente:");
+    return;
+  }
+
+#if defined(DEBUG_TASK_SUSPEND) || defined(DEBUG_ALL)
+  debug_print("(task_suspend) tarefa %d suspendendo.\n", ppos.currentTask->id);
+#endif
+
+  ppos.currentTask->status = SUSPENDED;                         // Atualiza o status da tarefa corrente
+  queue_append((queue_t **)queue, (queue_t *)ppos.currentTask); // Adiciona a tarefa corrente na fila passada
+
+#if defined(DEBUG_TASK_SUSPEND) || defined(DEBUG_ALL)
+  debug_print("(task_suspend) tarefa %d suspensa.\n", ppos.currentTask->id);
+#endif
+
+  task_switch(&ppos.dispatcherTask); // Troca de contexto para o dispatcher
+}
+
+// acorda a tarefa indicada,
+// trasferindo-a da fila "queue" para a fila de prontas
+void task_awake(task_t *task, task_t **queue)
+{
+  if (!queue) // Se a fila não existir
+  {
+    perror("(task_awake) fila inexistente:");
+    return;
+  }
+
+  if (!task) // Se a tarefa não existir
+  {
+    perror("(task_awake) tarefa inexistente:");
+    return;
+  }
+
+  int queueRemoveStatus = queue_remove((queue_t **)queue, (queue_t *)task); // Remove a tarefa da fila passada
+
+  if (queueRemoveStatus < 0) // Se houver erro ao remover a tarefa da fila passada
+  {
+    perror("(task_awake) erro ao acordar tarefa:");
+    return;
+  }
+
+  task->status = READY;                                        // Atualiza o status da tarefa
+  queue_append((queue_t **)&ppos.readyQueue, (queue_t *)task); // Adiciona a tarefa na fila de prontas
+
+#if defined(DEBUG_TASK_AWAKE) || defined(DEBUG_ALL)
+  debug_print("(task_awake) tarefa %d acordada.\n", task->id);
+#endif
 }

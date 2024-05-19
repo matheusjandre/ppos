@@ -4,18 +4,21 @@
 PROGRAM = output
 MAIN = main.c
 
+DEBUG = ALL
+VELOCITY = NORMAL
+
 LIB_DIR = lib
 OBJ_DIR = obj
 SRC_DIR = src
 
 COMP = gcc
-CFLAGS = -Wextra -std=gnu99
+CFLAGS = -Wextra -std=gnu99 -D$(VELOCITY)
 
 DEPS = queue.o ppos.o
 
 all: $(PROGRAM)
 
-debug: CFLAGS += -DDEBUG
+debug: CFLAGS += $(foreach flag, $(DEBUG), -DDEBUG_$(flag))
 debug: $(PROGRAM)
 
 $(PROGRAM): $(DEPS)
@@ -39,4 +42,4 @@ $(OBJ_DIR):
 
 clean:
 	@rm -rf $(OBJ_DIR) $(PROGRAM) debug
-	@echo "Successfully purged files."
+	@echo "Successfully erased compiled files."

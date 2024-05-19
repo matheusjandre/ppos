@@ -13,6 +13,9 @@
 // - Adicionado a função scheduler para escolher a próxima tarefa a ser executada
 // - Adicionado a função task_to_age para envelhecer a tarefa passada por parâmetro
 // - Adicionado a função tick_handler para tratar os sinais do temporizador do sistema
+// - Adicionado a função systime para retornar o tempo atual do sistema
+// - Adicionado a função task_birth_time para retornar o tempo de criação da tarefa
+// - Adicionado as funções task_wait, task_suspend, task_awake para manipular o estado das tarefas
 
 // Estruturas de dados internas do sistema operacional
 #ifndef __PPOS_DATA__
@@ -32,10 +35,15 @@
 #define PRIORITY_AGING -1  // valor de envelhecimento da prioridade
 
 // Tempo e Quantum de tempo para as tarefas
-#ifdef DEBUG
-#define CLOCK_FIRST_SHOT_U 100
+#ifdef SLOW
+#define CLOCK_FIRST_SHOT_U 2000
 #define CLOCK_FIRST_SHOT_S 0
 #define CLOCK_INTERVAL_U 100000
+#define CLOCK_INTERVAL_S 0
+#elif defined(FAST)
+#define CLOCK_FIRST_SHOT_U 200
+#define CLOCK_FIRST_SHOT_S 0
+#define CLOCK_INTERVAL_U 100
 #define CLOCK_INTERVAL_S 0
 #else
 #define CLOCK_FIRST_SHOT_U 2000
@@ -64,22 +72,24 @@ typedef enum task_type_e
 // Estrutura que define um Task Control Block (TCB)
 typedef struct task_t
 {
-  struct task_t *prev, *next; // ponteiros para usar em filas
-  unsigned int id;            // identificador da tarefa
-  task_type_e type;           // tipo da tarefa (USER_TASK, SYSTEM_TASK)
-  ucontext_t context;         // contexto armazenado da tarefa
-  task_status_e status;       // pronta, rodando, suspensa, ...
-  char staticPriority;        // prioridade estatica
-  char dynamicPriority;       // prioridade dinamica
-  unsigned char quanta;       // contador de quantum
-  unsigned int birthTime;     // momento de criação
-  unsigned int deathTime;     // momento de término
-  unsigned int processorTime; // tempo de processador
-  unsigned int activations;   // número de ativações
+  struct task_t *prev, *next; // Ponteiros para usar na estrutura de filas
+  unsigned int id;            // Identificador da tarefa
+  task_type_e type;           // Tipo da tarefa (USER_TASK, SYSTEM_TASK)
+  ucontext_t context;         // Contexto armazenado da tarefa
+  task_status_e status;       // Pronta, rodando, suspensa, ...
+  char staticPriority;        // Prioridade estatica
+  char dynamicPriority;       // Prioridade dinamica
+  unsigned char quanta;       // Contador de quantum
+  unsigned int birthTime;     // Momento de criação
+  unsigned int deathTime;     // Momento de término
+  unsigned int processorTime; // Tempo de processador
+  unsigned int activations;   // Número de ativações
+  unsigned int exitCode;      // Código de término
+  queue_t *waitingQueue;      // Fila de tarefas esperando por essa tarefa
 } task_t;
 
-typedef struct sigaction ppos_signal_handler_t; // estrutura de tratadores de sinais
-typedef struct itimerval ppos_timer_t;          // estrutura de intervalo de tempo
+typedef struct sigaction ppos_signal_handler_t; // Estrutura de tratadores de sinais
+typedef struct itimerval ppos_timer_t;          // Estrutura de intervalo de tempo
 
 // Estrutura que define as variáveis globais do sistema operacional
 typedef struct
