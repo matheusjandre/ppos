@@ -13,6 +13,8 @@
 // - Adicionado a função scheduler para escolher a próxima tarefa a ser executada
 // - Adicionado a função task_to_age para envelhecer a tarefa passada por parâmetro
 // - Adicionado a função tick_handler para tratar os sinais do temporizador do sistema
+// - Adicionado a função systime para retornar o tempo atual do sistema
+// - Adicionado a função task_birth_time para retornar o tempo de criação da tarefa
 
 // Estruturas de dados internas do sistema operacional
 #ifndef __PPOS_DATA__
@@ -69,22 +71,22 @@ typedef enum task_type_e
 // Estrutura que define um Task Control Block (TCB)
 typedef struct task_t
 {
-  struct task_t *prev, *next; // ponteiros para usar em filas
-  unsigned int id;            // identificador da tarefa
-  task_type_e type;           // tipo da tarefa (USER_TASK, SYSTEM_TASK)
-  ucontext_t context;         // contexto armazenado da tarefa
-  task_status_e status;       // pronta, rodando, suspensa, ...
-  char staticPriority;        // prioridade estatica
-  char dynamicPriority;       // prioridade dinamica
-  unsigned char quanta;       // contador de quantum
-  unsigned int birthTime;     // momento de criação
-  unsigned int deathTime;     // momento de término
-  unsigned int processorTime; // tempo de processador
-  unsigned int activations;   // número de ativações
+  struct task_t *prev, *next; // Ponteiros para usar na estrutura de filas
+  unsigned int id;            // Identificador da tarefa
+  task_type_e type;           // Tipo da tarefa (USER_TASK, SYSTEM_TASK)
+  ucontext_t context;         // Contexto armazenado da tarefa
+  task_status_e status;       // Pronta, rodando, suspensa, ...
+  char staticPriority;        // Prioridade estatica
+  char dynamicPriority;       // Prioridade dinamica
+  unsigned char quanta;       // Contador de quantum
+  unsigned int birthTime;     // Momento de criação
+  unsigned int deathTime;     // Momento de término
+  unsigned int processorTime; // Tempo de processador
+  unsigned int activations;   // Número de ativações
 } task_t;
 
-typedef struct sigaction ppos_signal_handler_t; // estrutura de tratadores de sinais
-typedef struct itimerval ppos_timer_t;          // estrutura de intervalo de tempo
+typedef struct sigaction ppos_signal_handler_t; // Estrutura de tratadores de sinais
+typedef struct itimerval ppos_timer_t;          // Estrutura de intervalo de tempo
 
 // Estrutura que define as variáveis globais do sistema operacional
 typedef struct

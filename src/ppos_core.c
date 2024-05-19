@@ -388,6 +388,7 @@ unsigned int systime()
   return ppos.clock; // Retorna o clock do sistema
 }
 
+// Retorna o tempo de criação da tarefa corrente
 unsigned int task_birth_time()
 {
   return ppos.currentTask->birthTime; // Retorna o momento de criação da tarefa corrente

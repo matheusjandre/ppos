@@ -40,4 +40,4 @@ $(OBJ_DIR):
 
 clean:
 	@rm -rf $(OBJ_DIR) $(PROGRAM) debug
-	@echo "Successfully purged files."
+	@echo "Successfully erased compiled files."
