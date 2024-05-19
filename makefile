@@ -3,6 +3,8 @@
 
 PROGRAM = output
 MAIN = main.c
+
+DEBUG = ALL
 VELOCITY = NORMAL
 
 LIB_DIR = lib
@@ -16,7 +18,7 @@ DEPS = queue.o ppos.o
 
 all: $(PROGRAM)
 
-debug: CFLAGS += -DDEBUG
+debug: CFLAGS += $(foreach flag, $(DEBUG), -DDEBUG_$(flag))
 debug: $(PROGRAM)
 
 $(PROGRAM): $(DEPS)
