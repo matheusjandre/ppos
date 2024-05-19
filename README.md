@@ -12,7 +12,7 @@ ppos is a toy operating system proposed by UFPR teacher Carlos Alberto Maziero a
 - [x] Preempção por tempo
 - [x] Contabilização
 - [x] Tarefas suspensas
-- [ ] Tarefas dormindo
+- [x] Tarefas dormindo
 - [ ] Semáforos
 - [ ] Uso de semáforos
 - [ ] Operador Barreira
@@ -65,6 +65,7 @@ $ make debug
 - TASK_AWAKE: Print the task awake
 - TASK_SUSPEND: Print the task suspend
 - TASK_WAIT: Print the task wait
+- TASK_SLEEP: Print the task sleep
 
 The default debug flag is `ALL`, to change the debug flags, you can use the `DEBUG` variable:
 

@@ -21,6 +21,7 @@ ppos_environment_t ppos; // Variáveis globais do sistema operacional
     defined(DEBUG_TASK_AWAKE) ||   \
     defined(DEBUG_TASK_SUSPEND) || \
     defined(DEBUG_TASK_WAIT) ||    \
+    defined(DEBUG_TASK_SLEEP) ||   \
     defined(DEBUG_ALL)
 
 #include <stdarg.h>
@@ -533,9 +534,61 @@ void task_awake(task_t *task, task_t **queue)
   }
 
   task->status = READY;                                        // Atualiza o status da tarefa
+  task->wakeTime = 0;                                          // Reseta o momento de acordar da tarefa
   queue_append((queue_t **)&ppos.readyQueue, (queue_t *)task); // Adiciona a tarefa na fila de prontas
 
 #if defined(DEBUG_TASK_AWAKE) || defined(DEBUG_ALL)
   debug_print("(task_awake) tarefa %d acordada.\n", task->id);
 #endif
+}
+
+// suspende a tarefa corrente por t milissegundos
+void task_sleep(int t)
+{
+  if (t < 0) // Se o tempo for menor ou igual a zero
+  {
+    perror("(task_sleep) tempo inválido:");
+    return;
+  }
+
+  ppos.currentTask->wakeTime = systime() + t;   // Atualiza o momento de acordar da tarefa corrente
+  task_suspend((task_t **)&ppos.sleepingQueue); // Suspende a tarefa corrente e adiciona na fila de espera
+
+#if defined(DEBUG_TASK_SLEEP) || defined(DEBUG_ALL)
+  debug_print("(task_sleep) tarefa %d dormindo por %d ms.\n", ppos.currentTask->id, t);
+#endif
+}
+
+// Acorda todas as tarefas dormindo que já passaram do tempo de acordar
+void check_sleeping_tasks()
+{
+  task_t *nextTask, *wakeTask;
+
+  if (queue_size((queue_t *)ppos.sleepingQueue) == 0) // Se a fila de tarefas dormindo estiver vazia não faz nada
+    return;
+
+  nextTask = (task_t *)ppos.sleepingQueue;
+
+  do
+  {
+    if (nextTask->wakeTime <= systime()) // Se a tarefa já passou do tempo de acordar
+    {
+      wakeTask = nextTask; // Salva a tarefa a ser acordada
+
+#if defined(DEBUG_TASK_SLEEP) || defined(DEBUG_ALL)
+      debug_print("(check_sleeping_tasks) tarefa %d acordando.\n", wakeTask->id);
+#endif
+
+      nextTask = nextTask->next;                            // Avança para a próxima tarefa
+      task_awake(wakeTask, (task_t **)&ppos.sleepingQueue); // Acorda a tarefa
+
+      if (queue_size((queue_t *)ppos.sleepingQueue) == 0) // Se a fila de tarefas dormindo estiver vazia sai do loop
+        break;
+    }
+    else
+    {
+      nextTask = nextTask->next; // Avança para a próxima tarefa
+    }
+
+  } while (nextTask != (task_t *)ppos.sleepingQueue); // Enquanto não percorrer toda a fila de tarefas dormindo
 }
