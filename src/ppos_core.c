@@ -281,34 +281,35 @@ void dispatcher(void *arg)
 #if defined(DEBUG_DISPATCHER) || defined(DEBUG_ALL)
   debug_print("(dispatcher) iniciando dispatcher.\n");
 #endif
-  task_t *nextTask = NULL;
+  task_t *currentTask = NULL;
   unsigned int taskProcessorTimeInit = 0, taskProcessorTimeEnd = 0;
 
   queue_remove((queue_t **)&ppos.readyQueue, (queue_t *)&ppos.dispatcherTask); // Remove a tarefa dispatcher da fila de prontas
 
   while (ppos.taskCounter > 0)
   {
-    nextTask = scheduler(); // Seleciona a próxima tarefa a ser executada
+    currentTask = scheduler(); // Seleciona a próxima tarefa a ser executada
 
-    if (nextTask)
+    if (currentTask)
     {
-      queue_remove((queue_t **)&ppos.readyQueue, (queue_t *)nextTask);           // Remove a tarefa selecionada da fila de prontas
-      taskProcessorTimeInit = systime();                                         // Inicia a contagem do tempo de processador
-      task_switch(nextTask);                                                     // Troca de contexto para a tarefa selecionada
-      taskProcessorTimeEnd = systime();                                          // Finaliza a contagem do tempo de processador
-      nextTask->processorTime += (taskProcessorTimeEnd - taskProcessorTimeInit); // Atualiza o tempo de processador da tarefa selecionada
+      queue_remove((queue_t **)&ppos.readyQueue, (queue_t *)currentTask);           // Remove a tarefa selecionada da fila de prontas
+      taskProcessorTimeInit = systime();                                            // Inicia a contagem do tempo de processador
+      task_switch(currentTask);                                                     // Troca de contexto para a tarefa selecionada
+      taskProcessorTimeEnd = systime();                                             // Finaliza a contagem do tempo de processador
+      currentTask->processorTime += (taskProcessorTimeEnd - taskProcessorTimeInit); // Atualiza o tempo de processador da tarefa selecionada
 
       // Trata o status da tarefa após a execução
-      switch (nextTask->status)
+      switch (currentTask->status)
       {
       case READY:
-        queue_append((queue_t **)&ppos.readyQueue, (queue_t *)nextTask); // Adiciona a tarefa novamente na fila de prontas
+        queue_append((queue_t **)&ppos.readyQueue, (queue_t *)currentTask); // Adiciona a tarefa novamente na fila de prontas
         break;
       case TERMINATED:
-        free(nextTask->context.uc_stack.ss_sp);  // Libera a pilha da tarefa
-        nextTask->context.uc_stack.ss_sp = NULL; // Reseta o ponteiro da pilha
-        nextTask->context.uc_stack.ss_size = 0;  // Reseta o tamanho da pilha
-        nextTask = NULL;                         // Reseta o ponteiro da tarefa
+        free(currentTask->context.uc_stack.ss_sp);  // Libera a pilha da tarefa
+        currentTask->context.uc_stack.ss_sp = NULL; // Reseta o ponteiro da pilha
+        currentTask->context.uc_stack.ss_size = 0;  // Reseta o tamanho da pilha
+        currentTask = NULL;                         // Reseta o ponteiro da tarefa
+        break;
         break;
       default:
 #if defined(DEBUG_DISPATCHER) || defined(DEBUG_ALL)
