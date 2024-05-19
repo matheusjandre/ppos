@@ -480,17 +480,12 @@ int task_wait(task_t *task)
     return -1;
   }
 
-  if (task->status == TERMINATED) // Se a tarefa estiver terminada
-  {
-    perror("(task_wait) tarefa já terminada:");
-    return -2;
-  }
+  if (task->status != TERMINATED)                 // Se a tarefa estiver terminada
+    task_suspend((task_t **)&task->waitingQueue); // Suspende a tarefa corrente e adiciona na fila de espera da tarefa passada
 
 #if defined(DEBUG_TASK_WAIT) || defined(DEBUG_ALL)
   debug_print("(task_wait) tarefa %d aguardando término da tarefa %d.\n", ppos.currentTask->id, task->id);
 #endif
-
-  task_suspend((task_t **)&task->waitingQueue); // Suspende a tarefa corrente e adiciona na fila de espera da tarefa passada
 
   return task->exitCode;
 }
