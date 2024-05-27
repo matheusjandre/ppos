@@ -12,7 +12,7 @@ OBJ_DIR = obj
 SRC_DIR = src
 
 COMP = gcc
-CFLAGS = -Wextra -std=gnu99 -D$(VELOCITY)
+CFLAGS = -Wextra -std=gnu99 -DVELOCITY_$(VELOCITY)
 
 DEPS = queue.o ppos.o
 
