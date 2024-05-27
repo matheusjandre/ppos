@@ -13,7 +13,7 @@ ppos is a toy operating system proposed by UFPR teacher Carlos Alberto Maziero a
 - [x] Contabilização
 - [x] Tarefas suspensas
 - [x] Tarefas dormindo
-- [ ] Semáforos
+- [x] Semáforos
 - [ ] Uso de semáforos
 - [ ] Operador Barreira
 - [ ] Filas de mensagens
