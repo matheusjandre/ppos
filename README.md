@@ -13,7 +13,7 @@ ppos is a toy operating system proposed by UFPR teacher Carlos Alberto Maziero a
 - [x] Contabilização
 - [x] Tarefas suspensas
 - [x] Tarefas dormindo
-- [ ] Semáforos
+- [x] Semáforos
 - [ ] Uso de semáforos
 - [ ] Operador Barreira
 - [ ] Filas de mensagens
@@ -66,6 +66,10 @@ $ make debug
 - TASK_SUSPEND: Print the task suspend
 - TASK_WAIT: Print the task wait
 - TASK_SLEEP: Print the task sleep
+- SEM_INIT: Print the semaphore initialization
+- SEM_DOWN: Print the semaphore down
+- SEM_UP: Print the semaphore up
+- SEM_DESTROY: Print the semaphore destroy
 
 The default debug flag is `ALL`, to change the debug flags, you can use the `DEBUG` variable:
 
