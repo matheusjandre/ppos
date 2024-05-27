@@ -14,7 +14,7 @@ SRC_DIR = src
 COMP = gcc
 CFLAGS = -Wextra -std=gnu99 -DVELOCITY_$(VELOCITY)
 
-DEPS = queue.o ppos.o
+DEPS = queue.o ppos_core.o ppos_ipc.o
 
 all: $(PROGRAM)
 
@@ -36,8 +36,11 @@ dbug.o: $(LIB_DIR)/dbug/*.h $(LIB_DIR)/dbug/*.c | $(OBJ_DIR)
 queue.o: $(LIB_DIR)/queue/*.h $(LIB_DIR)/queue/*.c | $(OBJ_DIR)
 	@$(COMP) $(CFLAGS) -c $(LIB_DIR)/queue/*.c -o $(OBJ_DIR)/$@
 
-ppos.o: $(SRC_DIR)/ppos.h $(SRC_DIR)/ppos_data.h $(SRC_DIR)/ppos_core.c | $(OBJ_DIR)
-	@$(COMP) $(CFLAGS) -c $(SRC_DIR)/ppos*.c -o $(OBJ_DIR)/$@
+ppos_core.o: $(SRC_DIR)/ppos.h $(SRC_DIR)/ppos_data.h $(SRC_DIR)/ppos_core.c | $(OBJ_DIR)
+	@$(COMP) $(CFLAGS) -c $(SRC_DIR)/ppos_core.c -o $(OBJ_DIR)/$@
+
+ppos_ipc.o: $(SRC_DIR)/ppos.h $(SRC_DIR)/ppos_data.h $(SRC_DIR)/ppos_ipc.c | $(OBJ_DIR)
+	@$(COMP) $(CFLAGS) -c $(SRC_DIR)/ppos_ipc.c -o $(OBJ_DIR)/$@
 
 $(OBJ_DIR):
 	@mkdir -p $@

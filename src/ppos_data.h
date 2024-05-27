@@ -109,7 +109,9 @@ typedef struct
 // Estrutura que define um semáforo
 typedef struct
 {
-  // Preencher quando necessário
+  char ocupied;          // Chave para exclusão mútua
+  int counter;           // Contador do semáforo
+  queue_t *waitingQueue; // Fila de tarefas esperando no semáforo
 } semaphore_t;
 
 // Estrutura que define um mutex
