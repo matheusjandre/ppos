@@ -28,9 +28,8 @@ void ppos_init()
 
   ppos.taskCounter = 1; // Inicializa o contador de tarefas
 
-  ppos.readyQueue = NULL;                                                // Inicializa a fila de tarefas prontas
-  queue_append((queue_t **)&ppos.readyQueue, (queue_t *)&ppos.mainTask); // Adiciona a tarefa main na fila de prontas
-  ppos.currentTask = &(ppos.mainTask);                                   // Tarefa corrente é a main
+  ppos.readyQueue = NULL;              // Inicializa a fila de tarefas prontas
+  ppos.currentTask = &(ppos.mainTask); // Tarefa corrente é a main
 
   int dispatcherId = task_init(&ppos.dispatcherTask, dispatcher, NULL); // Cria a tarefa dispatcher
   ppos.dispatcherTask.type = SYSTEM_TASK;                               // Atribui o tipo da tarefa dispatcher como tarea do sistema
@@ -77,8 +76,6 @@ void ppos_init()
   debug_print("(ppos_init) taskCounter: %d\n", ppos.taskCounter);
   debug_print("(ppos_init) sistema inicializado -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
 #endif
-
-  task_switch(&ppos.dispatcherTask); // Troca de contexto para o dispatcher
 }
 
 // Inicializa uma nova tarefa. Retorna um ID > 0 ou erro.
