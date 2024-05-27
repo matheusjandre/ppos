@@ -19,7 +19,8 @@ DEPS = queue.o ppos.o
 all: $(PROGRAM)
 
 debug: CFLAGS += $(foreach flag, $(DEBUG), -DDEBUG_$(flag))
-debug: $(PROGRAM)
+debug: CFLAGS += -include $(LIB_DIR)/dbug/dbug.h
+debug: dbug.o $(PROGRAM)
 
 $(PROGRAM): $(DEPS)
 	@$(COMP) $(CFLAGS) $(OBJ_DIR)/*.o $(MAIN) -o $@
@@ -29,8 +30,11 @@ $(PROGRAM): $(DEPS)
 
 # OBJECTS -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=
 
-queue.o: $(LIB_DIR)/*/queue.h $(LIB_DIR)/*/queue.c | $(OBJ_DIR)
-	@$(COMP) $(CFLAGS) -c $(LIB_DIR)/*/queue.c -o $(OBJ_DIR)/$@
+dbug.o: $(LIB_DIR)/dbug/*.h $(LIB_DIR)/dbug/*.c | $(OBJ_DIR)
+	@$(COMP) $(CFLAGS) -c $(LIB_DIR)/dbug/*.c -o $(OBJ_DIR)/$@
+
+queue.o: $(LIB_DIR)/queue/*.h $(LIB_DIR)/queue/*.c | $(OBJ_DIR)
+	@$(COMP) $(CFLAGS) -c $(LIB_DIR)/queue/*.c -o $(OBJ_DIR)/$@
 
 ppos.o: $(SRC_DIR)/ppos.h $(SRC_DIR)/ppos_data.h $(SRC_DIR)/ppos_core.c | $(OBJ_DIR)
 	@$(COMP) $(CFLAGS) -c $(SRC_DIR)/ppos*.c -o $(OBJ_DIR)/$@

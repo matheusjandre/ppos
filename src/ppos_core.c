@@ -9,38 +9,6 @@
 
 ppos_environment_t ppos; // Variáveis globais do sistema operacional
 
-#if defined(DEBUG_PPOS_INIT) ||    \
-    defined(DEBUG_TASK_INIT) ||    \
-    defined(DEBUG_TASK_SWITCH) ||  \
-    defined(DEBUG_TASK_EXIT) ||    \
-    defined(DEBUG_TASK_YIELD) ||   \
-    defined(DEBUG_TICK_HANDLER) || \
-    defined(DEBUG_DISPATCHER) ||   \
-    defined(DEBUG_SCHEDULER) ||    \
-    defined(DEBUG_TASK_SETPRIO) || \
-    defined(DEBUG_TASK_AWAKE) ||   \
-    defined(DEBUG_TASK_SUSPEND) || \
-    defined(DEBUG_TASK_WAIT) ||    \
-    defined(DEBUG_TASK_SLEEP) ||   \
-    defined(DEBUG_ALL)
-
-#include <stdarg.h>
-
-void debug_print(const char *format, ...)
-{
-  char buffer[256];              // Variavel para armazenar a string formatada
-  char color[10] = "\033[1;34m"; // Variavel para armazenar o código de cor (Azul)
-  char clear[10] = "\033[0m";    // Variavel para armazenar o código de cor (Padrão)
-
-  va_list args;
-  va_start(args, format);
-  vsnprintf(buffer, sizeof(buffer), format, args); // Formata a string
-  va_end(args);
-
-  printf("%s%s%s", color, buffer, clear); // Printa a string formatada com a cor azul
-}
-#endif
-
 // Inicializa o sistema operacional; deve ser chamada no inicio do main()
 void ppos_init()
 {
