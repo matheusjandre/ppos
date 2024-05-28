@@ -2,7 +2,7 @@
 # GRR: 20215397
 
 PROGRAM = output
-MAIN = main.c
+MAIN = pingpong-prodcons.c
 
 DEBUG = ALL
 VELOCITY = NORMAL
@@ -12,7 +12,7 @@ OBJ_DIR = obj
 SRC_DIR = src
 
 COMP = gcc
-CFLAGS = -Wextra -std=gnu99 -DVELOCITY_$(VELOCITY)
+CFLAGS = -Wall -std=gnu99 -DVELOCITY_$(VELOCITY)
 
 DEPS = queue.o ppos_core.o ppos_ipc.o
 

@@ -31,12 +31,8 @@ void ppos_init()
   ppos.readyQueue = NULL;              // Inicializa a fila de tarefas prontas
   ppos.currentTask = &(ppos.mainTask); // Tarefa corrente é a main
 
-  int dispatcherId = task_init(&ppos.dispatcherTask, dispatcher, NULL); // Cria a tarefa dispatcher
-  ppos.dispatcherTask.type = SYSTEM_TASK;                               // Atribui o tipo da tarefa dispatcher como tarea do sistema
-
-#if defined(DEBUG_PPOS_INIT) || defined(DEBUG_ALL)
-  debug_print("(ppos_init) dispatcher inicializado com id: %d.\n", dispatcherId);
-#endif
+  task_init(&ppos.dispatcherTask, dispatcher, NULL); // Cria a tarefa dispatcher
+  ppos.dispatcherTask.type = SYSTEM_TASK;            // Atribui o tipo da tarefa dispatcher como tarea do sistema
 
 #if defined(DEBUG_PPOS_INIT) || defined(DEBUG_ALL)
   debug_print("(ppos_init) inicializando tratador de sinais.\n");
