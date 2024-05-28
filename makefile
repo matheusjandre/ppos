@@ -2,7 +2,7 @@
 # GRR: 20215397
 
 PROGRAM = output
-MAIN = main.c
+MAIN = pingpong-prodcons.c
 
 DEBUG = ALL
 VELOCITY = NORMAL
