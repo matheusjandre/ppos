@@ -28,8 +28,11 @@ void ppos_init()
 
   ppos.taskCounter = 1; // Inicializa o contador de tarefas
 
-  ppos.readyQueue = NULL;              // Inicializa a fila de tarefas prontas
-  ppos.currentTask = &(ppos.mainTask); // Tarefa corrente é a main
+  ppos.readyQueue = NULL;    // Inicializa a fila de tarefas prontas
+  ppos.sleepingQueue = NULL; // Inicializa a fila de tarefas dormindo
+
+  ppos.currentTask = &(ppos.mainTask);                                   // Tarefa corrente é a main
+  queue_append((queue_t **)&ppos.readyQueue, (queue_t *)&ppos.mainTask); // Adiciona a tarefa main na fila de prontas
 
   task_init(&ppos.dispatcherTask, dispatcher, NULL); // Cria a tarefa dispatcher
   ppos.dispatcherTask.type = SYSTEM_TASK;            // Atribui o tipo da tarefa dispatcher como tarea do sistema
@@ -67,11 +70,14 @@ void ppos_init()
   }
 
 #if defined(DEBUG_PPOS_INIT) || defined(DEBUG_ALL)
-  debug_print("(ppos_init) mainTaskId: %d\n", ppos.mainTask.id);
-  debug_print("(ppos_init) currentTaskId: %d\n", ppos.currentTask->id);
-  debug_print("(ppos_init) taskCounter: %d\n", ppos.taskCounter);
+  debug_print("(ppos_init) main id: %d\n", ppos.mainTask.id);
+  debug_print("(ppos_init) dispatcher id: %d\n", ppos.dispatcherTask.id);
+  debug_print("(ppos_init) current task id: %d\n", ppos.currentTask->id);
+  debug_print("(ppos_init) quantidade de tarefas: %d\n", ppos.taskCounter);
   debug_print("(ppos_init) sistema inicializado -=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=-=\n");
 #endif
+
+  task_switch(&ppos.dispatcherTask); // Troca de contexto para o dispatcher
 }
 
 // Inicializa uma nova tarefa. Retorna um ID > 0 ou erro.
@@ -273,7 +279,8 @@ void dispatcher(void *arg)
     currentTask = scheduler(); // Seleciona a próxima tarefa a ser executada
 
 #if defined(DEBUG_DISPATCHER) || defined(DEBUG_ALL)
-    debug_print("(dispatcher) próxima tarefa: %d\n", currentTask->id);
+    if (currentTask)
+      debug_print("(dispatcher) próxima tarefa: %d\n", currentTask->id);
 #endif
 
     if (currentTask)
@@ -323,6 +330,10 @@ task_t *scheduler()
 {
   task_t *selectedTask = NULL, *tempTask = (task_t *)ppos.readyQueue;
   int tempTaskPriority = 0, selectedTaskPriority = 0;
+
+#if defined(DEBUG_SCHEDULER) || defined(DEBUG_ALL)
+  debug_print("(scheduler) total de tarefas no sistema: %d.\n", ppos.taskCounter);
+#endif
 
   if (tempTask) // Se a fila de tarefas prontas não estiver vazia
   {
