@@ -28,6 +28,7 @@ int sem_init(semaphore_t *s, int value)
   debug_print("(sem_init) inicializando o semáforo com valor %d\n", value);
 #endif
 
+  s->dead = 0;
   s->counter = value;
   s->waitingQueue = NULL;
 
@@ -37,7 +38,7 @@ int sem_init(semaphore_t *s, int value)
 // requisita o semáforo
 int sem_down(semaphore_t *s)
 {
-  if (!s)
+  if (s->dead)
     return -1;
 
   enter_critical_session(&s->ocupied);
@@ -56,7 +57,7 @@ int sem_down(semaphore_t *s)
 // libera o semáforo
 int sem_up(semaphore_t *s)
 {
-  if (!s)
+  if (s->dead)
     return -1;
 
   enter_critical_session(&s->ocupied);
@@ -75,12 +76,13 @@ int sem_up(semaphore_t *s)
 // "destroi" o semáforo, liberando as tarefas bloqueadas
 int sem_destroy(semaphore_t *s)
 {
-  if (!s)
+  if (s->dead)
     return -1;
 
   while (s->waitingQueue)
     task_awake((task_t *)s->waitingQueue, (task_t **)&s->waitingQueue); // acorda todas as tarefas bloqueadas
 
+  s->dead = 1;    // marca o semáforo como destruído
   s->counter = 0; // zera o contador
 
 #if defined(DEBUG_SEM_DESTROY) || defined(DEBUG_ALL)
