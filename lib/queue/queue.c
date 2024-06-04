@@ -48,22 +48,13 @@ int queue_append(queue_t **queue, queue_t *elem)
    queue_t *temp;
 
    if (!queue)
-   {
-      perror("Fila inexistente.");
       return -1;
-   }
 
    if (!elem)
-   {
-      perror("Elemento inexistente.");
       return -2;
-   }
 
    if (elem->next != NULL || elem->prev != NULL)
-   {
-      perror("O elemento pertence a uma fila.");
       return -3;
-   }
 
    if (!*queue) // Se fila vazia
    {
@@ -90,22 +81,13 @@ int queue_remove(queue_t **queue, queue_t *elem)
    queue_t *remove;
 
    if (!queue)
-   {
-      perror("Fila inexistente.");
       return -1;
-   }
 
    if (!(*queue))
-   {
-      perror("A fila está vazia.");
       return -2;
-   }
 
    if (!elem)
-   {
-      perror("Elemento inexistente.");
       return -3;
-   }
 
    remove = *queue; // Inicia a buscando pelo elemento da cabeça
 
@@ -119,10 +101,7 @@ int queue_remove(queue_t **queue, queue_t *elem)
    } while (remove != *queue && remove != elem); // Enquanto não volta para a cabeça ou encontra o elemento
 
    if (remove != elem) // Se não encontrou o elemento
-   {
-      perror("O elemento não foi encontrado na fila.");
       return -4;
-   }
 
    if (remove->next == remove && remove->prev == remove) // Se for o único elemento da fila
    {
@@ -132,10 +111,8 @@ int queue_remove(queue_t **queue, queue_t *elem)
       return 0;            // Elemento removido com sucesso
    }
 
-   if (remove == *queue) // Se for o primeiro elemento mas não o único
-   {
+   if (remove == *queue)     // Se for o primeiro elemento mas não o único
       *queue = remove->next; // Cabeça aponta para o próximo
-   }
 
    remove->prev->next = remove->next; // NEXT: Elemento anterior = próximo do elemento a ser removido
    remove->next->prev = remove->prev; // PREV: Próximo elemento = anterior do elemento a ser removido
