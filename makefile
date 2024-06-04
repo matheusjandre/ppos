@@ -2,7 +2,7 @@
 # GRR: 20215397
 
 PROGRAM = output
-MAIN = pingpong-prodcons.c
+MAIN = main.c
 
 DEBUG = ALL
 VELOCITY = NORMAL
@@ -12,7 +12,8 @@ OBJ_DIR = obj
 SRC_DIR = src
 
 COMP = gcc
-CFLAGS = -Wall -std=gnu99 -DVELOCITY_$(VELOCITY)
+CFLAGS = -Wall -std=gnu99 -DVELOCITY_$(VELOCITY) 
+LFLAGS = -lm
 
 DEPS = queue.o ppos_core.o ppos_ipc.o
 
@@ -23,7 +24,7 @@ debug: CFLAGS += -include $(LIB_DIR)/dbug/dbug.h
 debug: dbug.o $(PROGRAM)
 
 $(PROGRAM): $(DEPS)
-	@$(COMP) $(CFLAGS) $(OBJ_DIR)/*.o $(MAIN) -o $@
+	@$(COMP) $(CFLAGS) $(OBJ_DIR)/*.o $(MAIN) -o $@ $(LFLAGS)
 	@echo "Successfully built. To run: ./$@"
 	@echo "Cleaning up object files..."
 	@rm -rf $(OBJ_DIR)

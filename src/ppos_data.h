@@ -18,6 +18,8 @@
 // - Adicionado as funções task_wait, task_suspend, task_awake para manipular o estado das tarefas
 // - Adicionado a função task_sleep para dormir a tarefa por um tempo
 // - Adicionado a função check_sleeping_tasks para acordar todas as tarefas dormindo que já passaram do tempo de acordar
+// - Preenchido a estrutura de dados semaphore_t
+// - Preparado a estrutura de dados mqueue_t e adicionado a estrutura de dados message_t para manipular filas de mensagens
 
 // Estruturas de dados internas do sistema operacional
 #ifndef __PPOS_DATA__
@@ -109,6 +111,7 @@ typedef struct
 // Estrutura que define um semáforo
 typedef struct
 {
+  int dead;              // Flag para indicar se o semáforo foi destruído
   char ocupied;          // Chave para exclusão mútua
   int counter;           // Contador do semáforo
   queue_t *waitingQueue; // Fila de tarefas esperando no semáforo
@@ -127,9 +130,21 @@ typedef struct
 } barrier_t;
 
 // Estrutura que define uma fila de mensagens
+typedef struct message_t
+{
+  struct message_t *next;
+  struct message_t *prev;
+  void *content;
+} message_t;
+
+// Estrutura que define uma fila de mensagens
 typedef struct
 {
-  // Preencher quando necessário
+  int dead;                                // Flag para indicar se a fila foi destruída
+  int maxMessages;                         // Número máximo de mensagens
+  int messageSize;                         // Tamanho de cada mensagem
+  message_t *buffer;                       // Buffer das mensagens
+  semaphore_t s_buffer, s_vacancy, s_item; // Semáforos para controle de acesso ao buffer
 } mqueue_t;
 
 // Dispatcher do sistema operacional
